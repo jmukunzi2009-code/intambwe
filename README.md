@@ -1,36 +1,142 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# INTAMBWE — Complete Digital Leadership Platform
 
-## Getting Started
+> **Tagline:** Every Step Creates a Leader.  
+> **Philosophy:** LEARN → THINK → CONNECT → ACT → CREATE IMPACT.  
+> **Founder:** Irakoze Sarah Divine (Kigali, Rwanda)
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 1. About the Platform
+
+**INTAMBWE** is an end-to-end digital leadership, conference management, and youth empowerment platform. Founded by Rwandan young woman Irakoze Sarah Divine, the initiative connects secondary school students, educators, and distinguished mentors across Rwanda.
+
+The platform provides:
+- **Public Leadership Portal:** Curated curriculum across 8 core pillars, upcoming summits, conference archives, and educational handbooks.
+- **Student Leadership Portal:** Private reflection journals, conference seat registration, community challenges, and verified certificates.
+- **Executive Administration Console:** User management, conference scheduling, agenda building, real-time physical attendance tracking, content publishing, and security audit trails.
+- **Neon PostgreSQL Backend:** High-performance, relational database with repeatable versioned SQL migrations and strict parameterization.
+
+---
+
+## 2. Technology Stack
+
+- **Framework:** Next.js (App Router, Node.js runtime)
+- **Language:** JavaScript (ESNext, React)
+- **Database:** Neon Serverless PostgreSQL with connection pooling (`pg` client)
+- **Security:** HTTP-only secure cookies, cryptographic session tokens, bcrypt password hashing, parameterized SQL queries, strict server-side role validation
+- **Styling:** Custom INTAMBWE Design System (`Forest Green #123B2A`, `Emerald #167A50`, `Warm Gold #D4A72C`, Google Fonts `Poppins` & `Inter`)
+- **Icons & UI:** Lucide React, Recharts
+
+---
+
+## 3. Environment Variables
+
+Create `.env.local` based on `.env.example`:
+
+```env
+# 1. NEON POSTGRESQL DATABASE
+DATABASE_URL="postgresql://<user>:<password>@<host>/<database>?sslmode=require"
+
+# 2. APPLICATION CONFIGURATION
+NODE_ENV="development"
+APP_URL="http://localhost:3000"
+
+# 3. INITIAL SUPER ADMIN ACCOUNT (One-time bootstrap)
+SUPER_ADMIN_NAME="Irakoze Sarah Divine"
+BOOTSTRAP_ADMIN_EMAIL="admin@intambwe.org"
+BOOTSTRAP_ADMIN_PASSWORD="YourSecurePasswordHere"
+
+# 4. SESSION SECURITY
+SESSION_SECRET="your-cryptographically-secure-random-secret"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## 4. Setup and Installation
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 1. Install Dependencies
+```bash
+npm install
+```
 
-## Learn More
+### 2. Run Database Migrations
+Executes all versioned SQL scripts in `database/migrations/`:
+```bash
+node scripts/migrate.js
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Bootstrap Super Administrator Account
+Safely creates the initial Super Admin account from `.env.local`. Idempotent: refuses to create duplicate super admins.
+```bash
+node scripts/create-super-admin.js
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 4. Start Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 5. Account Roles and Access Control
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. **Founder / Super Admin:** Full platform governance, staff creation, system audit logs, website configuration.
+2. **Administrator:** Conference management, attendance oversight, content approval, user management.
+3. **Event Manager:** Conferences, agenda items, speakers, and attendance marking.
+4. **Content Editor:** Leadership curriculum articles, learning resources, and toolkits.
+5. **Student / Delegate:** Self-registration, conference seat reservations, personal leadership reflections, and challenge submissions.
+6. **Public Visitor:** Open access to public curriculum, articles, upcoming summit dates, and contact forms.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## 6. Project Architecture
+
+```
+intambwe/
+├── app/
+│   ├── layout.js                     # Root layout with Poppins & Inter fonts
+│   ├── globals.css                   # Master INTAMBWE design system styles
+│   ├── page.jsx                      # Public homepage with live DB stats
+│   ├── about/page.jsx                # Organization story, founder & values
+│   ├── explore/                      # 8 leadership pillars & article details
+│   ├── conferences/                  # Upcoming & past summits with agenda
+│   ├── resources/                    # Handbooks, worksheets & downloads
+│   ├── community/                    # Moderated dialogues & active challenges
+│   ├── contact/                      # Contact form with PostgreSQL storage
+│   ├── login/                        # Secure session-based authentication
+│   ├── register/                     # Enforced student registration
+│   ├── dashboard/
+│   │   ├── student/                  # Student portal (journal, certificates)
+│   │   └── admin/                    # Administrative console & attendance
+│   └── api/                          # Next.js Node.js Route Handlers
+│       ├── auth/                     # Register, login, logout, me
+│       ├── meetings/                 # Conferences CRUD, registration, attendance
+│       ├── articles/                 # Curriculum CRUD
+│       ├── journal/                  # Student private reflections
+│       ├── challenges/               # Active challenges & submissions
+│       ├── contact/                  # Contact messages
+│       ├── stats/                    # Real-time DB analytics
+│       └── users/                    # User roles & account status
+├── components/                       # Shared UI components (Navbar, Footer)
+├── database/
+│   └── migrations/                   # Safe, repeatable SQL migrations
+├── lib/
+│   ├── db.js                         # PostgreSQL connection pool & transactions
+│   ├── auth.js                       # Session management & bcrypt password hashing
+│   ├── permissions.js                # Role definitions & RBAC checks
+│   └── validation.js                 # Zod validation schemas
+├── scripts/
+│   ├── migrate.js                    # Database migration runner
+│   └── create-super-admin.js         # Secure super admin initialization
+└── package.json
+```
+
+---
+
+## 7. Production Deployment (Vercel + Neon)
+
+1. Connect the GitHub repository to [Vercel](https://vercel.com).
+2. In the Vercel project settings, configure `DATABASE_URL` and `SESSION_SECRET`.
+3. Set the build command to `npm run build`.
+4. Deploy the application.
