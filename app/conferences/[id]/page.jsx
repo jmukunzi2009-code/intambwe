@@ -23,6 +23,8 @@ import {
   HelpCircle
 } from 'lucide-react';
 import RegisterConferenceButton from './RegisterConferenceButton';
+import PrintAgendaButton from './PrintAgendaButton';
+import styles from '../conferences.module.css';
 
 export const revalidate = 0;
 
@@ -114,14 +116,14 @@ export default async function ConferenceDetailPage({ params }) {
   );
 
   return (
-    <>
+    <div className={styles.conferencePage}>
       <Navbar currentUser={currentUser} />
 
       <main style={{ minHeight: '100vh', backgroundColor: 'var(--color-bg-soft)', paddingBottom: '80px' }}>
         
         {/* HERO HEADER */}
-        <section style={{ backgroundColor: 'var(--color-forest)', color: 'var(--color-white)', padding: '50px 0 40px 0', position: 'relative' }}>
-          <div className="container" style={{ maxWidth: '1080px' }}>
+        <section className={styles.detailHero} style={{ backgroundColor: 'var(--color-forest)', color: 'var(--color-white)', position: 'relative' }}>
+          <div className={`container ${styles.detailHeroContent}`} style={{ maxWidth: '1080px' }}>
             <Link 
               href="/conferences" 
               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#b9c7bf', fontSize: '0.9rem', marginBottom: '20px' }}
@@ -130,20 +132,20 @@ export default async function ConferenceDetailPage({ params }) {
               <span>Back to all summits & conferences</span>
             </Link>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <div className={styles.heroMeta}>
               <span className="badge badge-gold">{meeting.status.replace('_', ' ')}</span>
               <span style={{ fontSize: '0.85rem', color: '#b9c7bf' }}>Summit #{meeting.meeting_number}</span>
             </div>
 
-            <h1 style={{ color: 'var(--color-white)', fontSize: 'clamp(2.2rem, 4vw, 3.2rem)', lineHeight: 1.2, marginBottom: '16px' }}>
+            <h1 className={styles.heroTitle} style={{ color: 'var(--color-white)', fontSize: 'clamp(2.2rem, 4vw, 3.2rem)', lineHeight: 1.2, marginBottom: '16px' }}>
               {meeting.title}
             </h1>
 
-            <div style={{ fontSize: '1.25rem', color: 'var(--color-gold)', fontWeight: 600, marginBottom: '24px' }}>
+            <div className={styles.heroTheme} style={{ fontSize: '1.25rem', color: 'var(--color-gold)', fontWeight: 600, marginBottom: '24px' }}>
               Theme: {meeting.theme}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.15)', paddingTop: '20px', fontSize: '0.92rem', color: '#d1dbd5' }}>
+            <div className={styles.heroFacts}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Calendar size={18} style={{ color: 'var(--color-gold)' }} />
                 <span>{new Date(meeting.event_date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}</span>
@@ -172,10 +174,10 @@ export default async function ConferenceDetailPage({ params }) {
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '36px', alignItems: 'flex-start' }}>
+          <div className={styles.detailLayout}>
             
             {/* LEFT / MAIN COLUMN */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '36px' }}>
+            <div className={styles.detailColumn}>
               
               {/* SUMMIT OVERVIEW & KEY THEMES */}
               <div className="card">
@@ -240,10 +242,7 @@ export default async function ConferenceDetailPage({ params }) {
                       Chronological timetable of keynote speeches, debates, and breakout workshops.
                     </p>
                   </div>
-                  <button onClick={() => window.print()} className="btn btn-outline btn-sm no-print">
-                    <Printer size={15} />
-                    <span>Print Agenda</span>
-                  </button>
+                  <PrintAgendaButton />
                 </div>
 
                 {agendaRes.rows.length === 0 ? (
@@ -306,7 +305,7 @@ export default async function ConferenceDetailPage({ params }) {
                       Summit Photo Gallery & Student Highlights
                     </h3>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+                  <div className={styles.galleryGrid}>
                     {gallery.map((imgUrl, i) => (
                       <div key={i} style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', height: '170px', boxShadow: 'var(--shadow-sm)' }}>
                         <img 
@@ -322,7 +321,7 @@ export default async function ConferenceDetailPage({ params }) {
 
               {/* REGISTERED & ATTENDED DELEGATES ROSTER */}
               <div className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div className={styles.rosterHeading}>
                   <div>
                     <h3 style={{ fontSize: '1.25rem', color: 'var(--color-forest)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Users size={20} style={{ color: 'var(--color-emerald)' }} />
@@ -404,13 +403,13 @@ export default async function ConferenceDetailPage({ params }) {
             </div>
 
             {/* RIGHT SIDEBAR: REGISTRATION & PARTNER SCHOOLS */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div className={styles.detailColumn} style={{ gap: '24px' }}>
               
               {/* REGISTRATION ACTION CARD */}
               <div className="card" style={{ borderTop: '4px solid var(--color-gold)' }}>
                 <h3 style={{ fontSize: '1.2rem', marginBottom: '12px' }}>Conference Registration</h3>
                 
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '0.9rem' }}>
+                <div className={styles.registrationStats}>
                   <span style={{ color: 'var(--color-text-muted)' }}>Confirmed Registrations:</span>
                   <strong>{meeting.registration_count} / {meeting.capacity} seats</strong>
                 </div>
@@ -482,6 +481,6 @@ export default async function ConferenceDetailPage({ params }) {
       </main>
 
       <Footer />
-    </>
+    </div>
   );
 }

@@ -66,20 +66,12 @@ export async function POST(request) {
     const { title, description, fileType, fileUrl, fileSizeMb, categoryId, isPublic } = await request.json();
 
     if (typeof title !== 'string' || !title.trim() ||
-        typeof description !== 'string' || !description.trim() ||
         typeof fileUrl !== 'string' || !fileUrl.trim()) {
-      return NextResponse.json({ error: 'Title, description, and file URL are required.' }, { status: 400 });
+      return NextResponse.json({ error: 'Title and file URL or path are required.' }, { status: 400 });
     }
 
     const parsedCategoryId = categoryId ? Number(categoryId) : null;
-    if (parsedCategoryId !== null && !Number.isInteger(parsedCategoryId)) {
-      return NextResponse.json({ error: 'Choose a valid resource category.' }, { status: 400 });
-    }
-
     const parsedFileSizeMb = fileSizeMb === '' || fileSizeMb == null ? null : Number(fileSizeMb);
-    if (parsedFileSizeMb !== null && (!Number.isFinite(parsedFileSizeMb) || parsedFileSizeMb < 0 || parsedFileSizeMb > 999.99)) {
-      return NextResponse.json({ error: 'File size must be between 0 and 999.99 MB.' }, { status: 400 });
-    }
 
     const res = await query(
       `INSERT INTO resources (title, description, file_type, file_url, file_size_mb, category_id, is_public, uploaded_by, status)
@@ -87,7 +79,7 @@ export async function POST(request) {
        RETURNING *`,
       [
         title.trim(),
-        description.trim(),
+        (description || '').trim(),
         fileType || 'pdf',
         fileUrl.trim(),
         parsedFileSizeMb,
@@ -109,10 +101,69 @@ export async function POST(request) {
   } catch (error) {
     console.error('Create resource error:', error);
     return NextResponse.json({
-      error: process.env.NODE_ENV === 'development' && error instanceof Error
-        ? `Failed to create resource: ${error.message}`
-        : 'Failed to create resource.',
+      error: 'Failed to create resource.',
     }, { status: 500 });
+  }
+}
+
+export async function PUT(request) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || !hasPermission(user.role, PERMISSIONS.RESOURCES_MANAGE)) {
+      return NextResponse.json({ error: 'Unauthorized to update resources.' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'Resource ID is required.' }, { status: 400 });
+    }
+
+    const body = await request.json();
+    const { title, description, fileType, fileUrl, fileSizeMb, categoryId, isPublic, status } = body;
+
+    const res = await query(
+      `UPDATE resources
+       SET title = COALESCE($2, title),
+           description = COALESCE($3, description),
+           file_type = COALESCE($4, file_type),
+           file_url = COALESCE($5, file_url),
+           file_size_mb = COALESCE($6, file_size_mb),
+           category_id = $7,
+           is_public = COALESCE($8, is_public),
+           status = COALESCE($9, status),
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [
+        id,
+        title ? title.trim() : null,
+        description != null ? description.trim() : null,
+        fileType || null,
+        fileUrl ? fileUrl.trim() : null,
+        fileSizeMb != null ? Number(fileSizeMb) : null,
+        categoryId ? Number(categoryId) : null,
+        isPublic != null ? Boolean(isPublic) : null,
+        status || null,
+      ]
+    );
+
+    if (res.rows.length === 0) {
+      return NextResponse.json({ error: 'Resource not found.' }, { status: 404 });
+    }
+
+    await logAudit({
+      userId: user.id,
+      action: 'RESOURCE_UPDATED',
+      entityType: 'resources',
+      entityId: id,
+      details: { title, status },
+    });
+
+    return NextResponse.json({ success: true, resource: res.rows[0] });
+  } catch (error) {
+    console.error('Update resource error:', error);
+    return NextResponse.json({ error: 'Failed to update resource.' }, { status: 500 });
   }
 }
 
@@ -155,7 +206,7 @@ export async function PATCH(request) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const { status, title, description, fileUrl } = await request.json();
+    const { status, title, description, fileUrl, fileType, isPublic, categoryId } = await request.json();
 
     if (!id) {
       return NextResponse.json({ error: 'Resource ID is required.' }, { status: 400 });
@@ -172,13 +223,25 @@ export async function PATCH(request) {
       params.push(title.trim());
       updates.push(`title = $${params.length}`);
     }
-    if (description) {
+    if (description != null) {
       params.push(description.trim());
       updates.push(`description = $${params.length}`);
     }
     if (fileUrl) {
       params.push(fileUrl.trim());
       updates.push(`file_url = $${params.length}`);
+    }
+    if (fileType) {
+      params.push(fileType);
+      updates.push(`file_type = $${params.length}`);
+    }
+    if (typeof isPublic === 'boolean') {
+      params.push(isPublic);
+      updates.push(`is_public = $${params.length}`);
+    }
+    if (categoryId !== undefined) {
+      params.push(categoryId ? Number(categoryId) : null);
+      updates.push(`category_id = $${params.length}`);
     }
 
     if (updates.length === 0) {
@@ -189,6 +252,10 @@ export async function PATCH(request) {
       `UPDATE resources SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $1 RETURNING *`,
       params
     );
+
+    if (res.rows.length === 0) {
+      return NextResponse.json({ error: 'Resource not found.' }, { status: 404 });
+    }
 
     await logAudit({
       userId: user.id,

@@ -38,6 +38,9 @@ export default async function AdminDashboardPage() {
     studentsCount,
     schoolsCount,
     regCount,
+    teamRes,
+    momentsRes,
+    notesRes,
   ] = await Promise.all([
     query(`
       SELECT u.id, u.full_name, u.email, u.role, u.is_active, u.created_at,
@@ -78,13 +81,36 @@ export default async function AdminDashboardPage() {
       ORDER BY al.created_at DESC
       LIMIT 25
     `),
-    query('SELECT * FROM article_categories ORDER BY id ASC'),
+    query(`
+      SELECT ac.*, COUNT(DISTINCT a.id) FILTER (WHERE a.status = 'published')::int AS lesson_count,
+             COUNT(DISTINCT ce.user_id)::int AS student_count
+      FROM article_categories ac
+      LEFT JOIN articles a ON a.category_id = ac.id
+      LEFT JOIN course_enrollments ce ON ce.category_id = ac.id
+      GROUP BY ac.id
+      ORDER BY ac.id ASC
+    `),
     query('SELECT * FROM resource_categories ORDER BY id ASC'),
     query('SELECT * FROM schools ORDER BY name ASC'),
     query('SELECT COUNT(*) FROM users'),
     query("SELECT COUNT(*) FROM users WHERE role = 'student'"),
     query('SELECT COUNT(*) FROM schools'),
     query('SELECT COUNT(*) FROM event_registrations'),
+    query('SELECT * FROM team_members ORDER BY sort_order ASC, id ASC'),
+    query('SELECT * FROM community_moments ORDER BY sort_order ASC, id ASC'),
+    query(`
+      SELECT n.*, u.full_name, u.role, sp.school_name,
+             COUNT(DISTINCT likes.user_id)::int AS like_count,
+             COALESCE(BOOL_OR(my_like.user_id IS NOT NULL), false) AS liked_by_me
+      FROM stick_notes n
+      JOIN users u ON u.id = n.user_id
+      LEFT JOIN student_profiles sp ON sp.user_id = u.id
+      LEFT JOIN stick_note_likes likes ON likes.note_id = n.id
+      LEFT JOIN stick_note_likes my_like ON my_like.note_id = n.id AND my_like.user_id = $1
+      GROUP BY n.id, u.id, sp.school_name
+      ORDER BY n.created_at DESC
+      LIMIT 120
+    `, [currentUser?.id || null]),
   ]);
 
   const metrics = {
@@ -107,6 +133,9 @@ export default async function AdminDashboardPage() {
       categories={categoriesRes.rows}
       resourceCategories={resourceCategoriesRes.rows}
       schools={schoolsRes.rows}
+      initialTeam={teamRes.rows}
+      initialMoments={momentsRes.rows}
+      initialNotes={notesRes.rows}
     />
   );
 }

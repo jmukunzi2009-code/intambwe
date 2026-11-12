@@ -7,6 +7,7 @@ export default function MarkCompletedButton({ articleId, initialCompleted = fals
   const [completed, setCompleted] = useState(initialCompleted);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [certificate, setCertificate] = useState(null);
 
   if (!isLoggedIn) {
     return null;
@@ -24,6 +25,7 @@ export default function MarkCompletedButton({ articleId, initialCompleted = fals
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update lesson progress.');
       setCompleted(data.isCompleted);
+      setCertificate(data.courseCertificate || data.pathwayCertificate || null);
     } catch (requestError) {
       console.error(requestError);
       setError(requestError.message || 'Failed to update lesson progress.');
@@ -45,6 +47,15 @@ export default function MarkCompletedButton({ articleId, initialCompleted = fals
           {loading ? 'Updating...' : completed ? 'Lesson Completed ✓' : 'Mark as Completed'}
         </span>
       </button>
+      {certificate && (
+        <a
+          href={certificate.verification_url || `/certificates/${certificate.certificate_code}`}
+          className="btn btn-gold btn-sm"
+          style={{ display: 'flex', width: 'fit-content', marginTop: '8px' }}
+        >
+          View {certificate.title}
+        </a>
+      )}
       {error && <p role="alert" style={{ color: 'var(--color-danger)', fontSize: '0.78rem', marginTop: '5px' }}>{error}</p>}
     </div>
   );

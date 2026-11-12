@@ -107,6 +107,24 @@ export default async function StudentDashboardPage() {
      LIMIT 4`
   );
 
+  // 7. Fetch student enrolled courses with progress
+  const enrolledCoursesRes = await query(
+    `SELECT ce.enrolled_at, ac.id as category_id, ac.name as course_name, ac.slug as course_slug,
+            ac.description, ac.cover_image_url,
+            COUNT(DISTINCT a.id) FILTER (WHERE a.status = 'published')::int as total_lessons,
+            COUNT(DISTINCT slp.article_id)::int as completed_lessons,
+            cert.certificate_code
+     FROM course_enrollments ce
+     JOIN article_categories ac ON ce.category_id = ac.id
+     LEFT JOIN articles a ON a.category_id = ac.id AND a.status = 'published'
+     LEFT JOIN student_learning_progress slp ON slp.article_id = a.id AND slp.user_id = $1
+     LEFT JOIN certificates cert ON cert.user_id = $1 AND cert.category_id = ac.id
+     WHERE ce.user_id = $1
+     GROUP BY ce.enrolled_at, ac.id, cert.certificate_code
+     ORDER BY ce.enrolled_at DESC`,
+    [user.id]
+  );
+
   return (
     <>
       <Navbar currentUser={user} />
@@ -217,6 +235,116 @@ export default async function StudentDashboardPage() {
             {/* LEFT / MAIN COLUMN */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '36px' }}>
               
+              {/* MY ENROLLED COURSES & STEP-BY-STEP LEARNING */}
+              <div className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
+                  <div>
+                    <span className="badge badge-gold" style={{ marginBottom: '6px' }}>Modular Curriculum</span>
+                    <h3 style={{ fontSize: '1.25rem', color: 'var(--color-forest)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <BookOpen size={20} style={{ color: 'var(--color-emerald)' }} />
+                      <span>My Enrolled Leadership Courses</span>
+                    </h3>
+                  </div>
+                  <Link href="/explore" className="btn btn-outline btn-sm">
+                    Browse All Courses
+                  </Link>
+                </div>
+
+                {enrolledCoursesRes.rows.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '32px 14px', backgroundColor: '#F8FAF9', borderRadius: 'var(--radius-md)' }}>
+                    <BookOpen size={32} style={{ color: 'var(--color-emerald)', marginBottom: '8px', opacity: 0.7 }} />
+                    <h4 style={{ fontSize: '1.05rem', color: 'var(--color-forest)', marginBottom: '6px' }}>Start your leadership learning journey</h4>
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem', marginBottom: '16px', maxWidth: '440px', margin: '0 auto 16px auto' }}>
+                      Enroll in structured leadership courses. Learn topic by topic, write private reflections, and receive official downloadable certificates.
+                    </p>
+                    <Link href="/explore" className="btn btn-emerald btn-sm">
+                      Explore Leadership Courses
+                    </Link>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                    {enrolledCoursesRes.rows.map((course) => {
+                      const total = Number(course.total_lessons) || 0;
+                      const completed = Number(course.completed_lessons) || 0;
+                      const percent = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
+                      const isFinished = total > 0 && completed >= total;
+
+                      return (
+                        <div
+                          key={course.category_id}
+                          style={{
+                            padding: '20px',
+                            border: '1px solid var(--color-border)',
+                            borderRadius: 'var(--radius-md)',
+                            backgroundColor: '#FFFFFF',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '12px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
+                            <div>
+                              <span className={`badge ${isFinished ? 'badge-emerald' : 'badge-gold'}`} style={{ marginBottom: '6px' }}>
+                                {isFinished ? '✓ Course Completed' : `In Progress · ${percent}%`}
+                              </span>
+                              <h4 style={{ fontSize: '1.15rem', color: 'var(--color-forest)' }}>
+                                <Link href={`/courses/${course.category_id}`}>
+                                  {course.course_name}
+                                </Link>
+                              </h4>
+                            </div>
+                            <span style={{ fontSize: '0.82rem', color: 'var(--color-text-subtle)' }}>
+                              Enrolled {new Date(course.enrolled_at).toLocaleDateString()}
+                            </span>
+                          </div>
+
+                          <p style={{ fontSize: '0.86rem', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+                            {course.description || 'Guided modular leadership lessons and reflections.'}
+                          </p>
+
+                          {/* Course progress bar */}
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--color-text-subtle)', marginBottom: '4px' }}>
+                              <span>Progress</span>
+                              <span><strong>{completed}</strong> of {total} lessons completed</span>
+                            </div>
+                            <div style={{ height: '7px', backgroundColor: '#EAEAEA', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                              <div
+                                style={{
+                                  width: `${percent}%`,
+                                  height: '100%',
+                                  backgroundColor: isFinished ? 'var(--color-emerald)' : 'var(--color-gold)',
+                                  borderRadius: 'var(--radius-full)',
+                                  transition: 'width 0.4s ease'
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Action row */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', paddingTop: '8px', borderTop: '1px solid var(--color-border-light)' }}>
+                            <Link href={`/courses/${course.category_id}`} className="btn btn-emerald btn-sm">
+                              {isFinished ? 'Review Lessons' : 'Continue Studying'} <ArrowRight size={14} />
+                            </Link>
+
+                            {isFinished && course.certificate_code && (
+                              <Link
+                                href={`/certificates/${course.certificate_code}`}
+                                className="btn btn-gold btn-sm"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                              >
+                                <Award size={15} />
+                                <span>Download Official Certificate</span>
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* MY REGISTERED CONFERENCES */}
               <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>

@@ -52,7 +52,15 @@ export async function PUT(request, { params }) {
     }
 
     const { id } = await params;
-    const parsed = articleSchema.safeParse(await request.json());
+    const body = await request.json();
+    if (!body.introduction && body.content) {
+      body.introduction = body.content.slice(0, 220).replace(/\n+/g, ' ').trim();
+    }
+    if (!body.slug && body.title) {
+      body.slug = body.title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    }
+
+    const parsed = articleSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
@@ -62,9 +70,9 @@ export async function PUT(request, { params }) {
       `UPDATE articles
        SET category_id = $2, title = $3, slug = $4, introduction = $5, content = $6,
            learning_objectives = $7, practical_exercises = $8, critical_thinking_questions = $9,
-           reflection_activity = $10, reading_time_minutes = $11, status = $12,
-           cover_image_url = $13, video_url = $14,
-           published_at = CASE WHEN $12 = 'published' THEN COALESCE(published_at, NOW()) ELSE published_at END,
+           reflection_activity = $10, reading_time_minutes = $11, sort_order = $12, status = $13,
+           cover_image_url = $14, video_url = $15,
+           published_at = CASE WHEN $13 = 'published' THEN COALESCE(published_at, NOW()) ELSE published_at END,
            updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
@@ -73,14 +81,15 @@ export async function PUT(request, { params }) {
         article.categoryId,
         article.title,
         article.slug,
-        article.introduction,
+        article.introduction || article.content.slice(0, 200),
         article.content,
         article.learningObjectives || null,
         article.practicalExercises || null,
         article.criticalThinkingQuestions || null,
         article.reflectionActivity || null,
-        article.readingTimeMinutes,
-        article.status,
+        article.readingTimeMinutes || 5,
+        article.sortOrder || 1,
+        article.status || 'published',
         article.coverImageUrl || null,
         article.videoUrl || null,
       ]
@@ -105,6 +114,47 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: 'An article with this URL slug already exists.' }, { status: 409 });
     }
     return NextResponse.json({ error: 'Failed to update article.' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request, { params }) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || !hasPermission(user.role, PERMISSIONS.ARTICLES_MANAGE)) {
+      return NextResponse.json({ error: 'Unauthorized to update lessons.' }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const { status } = await request.json();
+    if (!['published', 'suspended', 'draft', 'archived'].includes(status)) {
+      return NextResponse.json({ error: 'Choose published, suspended, draft, or archived.' }, { status: 400 });
+    }
+
+    const result = await query(
+      `UPDATE articles
+       SET status = $2,
+           published_at = CASE WHEN $2 = 'published' THEN COALESCE(published_at, NOW()) ELSE published_at END,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, title, status`,
+      [id, status]
+    );
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Lesson not found.' }, { status: 404 });
+    }
+
+    await logAudit({
+      userId: user.id,
+      action: 'ARTICLE_STATUS_CHANGED',
+      entityType: 'articles',
+      entityId: id,
+      details: { status, title: result.rows[0].title },
+    });
+
+    return NextResponse.json({ success: true, article: result.rows[0] });
+  } catch (error) {
+    console.error('Article status error:', error);
+    return NextResponse.json({ error: 'Failed to update the lesson.' }, { status: 500 });
   }
 }
 

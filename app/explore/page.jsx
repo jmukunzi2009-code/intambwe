@@ -4,214 +4,138 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { getCurrentUser } from '@/lib/auth';
 import { query } from '@/lib/db';
-import { 
-  BookOpen, 
-  Clock, 
-  ArrowRight, 
-  Search, 
-  User, 
-  ShieldCheck, 
-  Brain, 
-  Mic, 
-  Users, 
-  Lightbulb, 
-  HeartHandshake, 
-  Sparkles,
-  Video
-} from 'lucide-react';
+import { ArrowRight, BookOpen, Clock, Search, Video } from 'lucide-react';
 
 export const metadata = {
-  title: 'Explore Leadership | INTAMBWE Curriculum',
-  description: 'Explore the 8 pillars of leadership education, comprehensive guides, practical exercises, and reflection activities.',
+  title: 'Leadership Courses | INTAMBWE Curriculum',
+  description: 'Explore leadership courses, study lessons step by step, practice new skills, and reflect on your growth.',
 };
 
 export const revalidate = 0;
 
-const ICON_MAP = {
-  UserCheck: ShieldCheck,
-  Brain: Brain,
-  Mic: Mic,
-  Users: Users,
-  ShieldCheck: ShieldCheck,
-  Lightbulb: Lightbulb,
-  HeartHandshake: HeartHandshake,
-  Sparkles: Sparkles,
-};
-
 export default async function ExplorePage({ searchParams }) {
   const resolvedParams = await searchParams;
   const selectedCategory = resolvedParams?.category || '';
-  const searchQuery = resolvedParams?.q || '';
-
+  const searchQuery = String(resolvedParams?.q || '').trim();
   const currentUser = await getCurrentUser();
 
-  // Fetch all categories
-  const categoriesRes = await query(
-    `SELECT ac.*, COUNT(a.id) as article_count 
-     FROM article_categories ac 
-     LEFT JOIN articles a ON ac.id = a.category_id AND a.status = 'published'
-     GROUP BY ac.id 
-     ORDER BY ac.id ASC`
+  const coursesRes = await query(
+    `SELECT ac.id, ac.name, ac.slug, ac.description, ac.icon_name, ac.cover_image_url, ac.video_url,
+            ac.status, COUNT(DISTINCT a.id) FILTER (WHERE a.status = 'published')::int AS lesson_count,
+            COUNT(DISTINCT p.article_id)::int AS completed_lessons
+     FROM article_categories ac
+     LEFT JOIN articles a ON a.category_id = ac.id
+     LEFT JOIN student_learning_progress p
+       ON p.article_id = a.id AND p.user_id = $1 AND a.status = 'published'
+     WHERE ac.status = 'published'
+     GROUP BY ac.id
+     ORDER BY ac.id ASC`,
+    [currentUser?.role === 'student' ? currentUser.id : null]
   );
-
-  // Build query for articles
-  const conditions = ["a.status = 'published'"];
-  const params = [];
-
-  if (selectedCategory) {
-    params.push(selectedCategory);
-    conditions.push(`ac.slug = $${params.length}`);
-  }
-
-  if (searchQuery) {
-    params.push(`%${searchQuery}%`);
-    conditions.push(`(a.title ILIKE $${params.length} OR a.introduction ILIKE $${params.length} OR a.content ILIKE $${params.length})`);
-  }
-
-  const whereClause = `WHERE ${conditions.join(' AND ')}`;
-
-  const articlesRes = await query(
-    `SELECT a.id, a.title, a.slug, a.introduction, a.learning_objectives, a.reading_time_minutes, a.published_at,
-            a.cover_image_url, a.video_url,
-            ac.name as category_name, ac.slug as category_slug,
-            u.full_name as author_name
-     FROM articles a
-     JOIN article_categories ac ON a.category_id = ac.id
-     LEFT JOIN users u ON a.author_id = u.id
-     ${whereClause}
-     ORDER BY a.published_at DESC`,
-    params
-  );
+  const allCourses = coursesRes.rows;
+  const categories = allCourses;
+  const courses = allCourses.filter((course) => {
+    const matchesCategory = !selectedCategory || course.slug === selectedCategory;
+    const searchable = `${course.name} ${course.description || ''}`.toLowerCase();
+    return matchesCategory && (!searchQuery || searchable.includes(searchQuery.toLowerCase()));
+  });
 
   return (
     <>
       <Navbar currentUser={currentUser} />
-
       <main>
-        {/* HEADER */}
-        <section style={{ backgroundColor: 'var(--color-forest)', color: 'var(--color-white)', padding: '70px 0 50px 0' }}>
-          <div className="container" style={{ textAlign: 'center', maxWidth: '800px' }}>
-            <span className="badge badge-gold" style={{ marginBottom: '14px' }}>Leadership Curriculum</span>
+        <section style={{ backgroundColor: 'var(--color-forest)', color: 'var(--color-white)', padding: '70px 0 50px' }}>
+          <div className="container" style={{ textAlign: 'center', maxWidth: '850px' }}>
+            <span className="badge badge-gold" style={{ marginBottom: '14px' }}>Leadership learning paths</span>
             <h1 style={{ color: 'var(--color-white)', fontSize: 'clamp(2.2rem, 4vw, 3.2rem)', marginBottom: '16px' }}>
-              Explore Leadership Lessons
+              Choose a course. Grow one lesson at a time.
             </h1>
-            <p style={{ color: '#d1dbd5', fontSize: '1.1rem', lineHeight: 1.6 }}>
-              Deep, rigorous leadership lessons designed for Rwandan youth. Each article contains core frameworks, real-world case examples, critical thinking questions, and actionable reflection tasks.
+            <p style={{ color: '#d1dbd5', fontSize: '1.1rem', lineHeight: 1.7 }}>
+              Explore courses designed for student leaders. Preview the course, sign in to start learning, then work through its lessons and track your progress from your dashboard.
             </p>
           </div>
         </section>
 
-        {/* SEARCH & CATEGORY PILLS */}
-        <section style={{ backgroundColor: 'var(--color-white)', borderBottom: '1px solid var(--color-border)', padding: '24px 0' }}>
+        <section className="course-catalog-tools">
           <div className="container">
-            {/* Search Bar */}
-            <form method="GET" action="/explore" style={{ maxWidth: '640px', margin: '0 auto 24px auto', display: 'flex', gap: '8px' }}>
-              <input 
-                type="text" 
+            <form method="GET" action="/explore" className="course-search">
+              <input
+                type="search"
                 name="q"
                 defaultValue={searchQuery}
-                placeholder="Search lessons, topics, or exercises..."
+                placeholder="Search courses and leadership topics"
                 className="form-input"
-                style={{ flex: 1 }}
               />
               {selectedCategory && <input type="hidden" name="category" value={selectedCategory} />}
-              <button type="submit" className="btn btn-primary">
-                <Search size={18} />
-                <span>Search</span>
-              </button>
+              <button type="submit" className="btn btn-primary"><Search size={17} /> Search</button>
             </form>
 
-            {/* Category Filter Pills */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
-              <Link 
-                href="/explore" 
-                className={`btn btn-sm ${!selectedCategory ? 'btn-primary' : 'btn-outline'}`}
-              >
-                All Categories
-              </Link>
-              {categoriesRes.rows.map((cat) => {
-                const isActive = selectedCategory === cat.slug;
-                return (
-                  <Link
-                    key={cat.id}
-                    href={`/explore?category=${cat.slug}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
-                    className={`btn btn-sm ${isActive ? 'btn-primary' : 'btn-outline'}`}
-                  >
-                    {cat.name} ({cat.article_count})
-                  </Link>
-                );
-              })}
+            <div className="course-category-filters" aria-label="Filter courses by category">
+              <Link href="/explore" className={`btn btn-sm ${!selectedCategory ? 'btn-primary' : 'btn-outline'}`}>All courses</Link>
+              {categories.map((course) => (
+                <Link
+                  key={course.id}
+                  href={`/explore?category=${encodeURIComponent(course.slug)}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+                  className={`btn btn-sm ${selectedCategory === course.slug ? 'btn-primary' : 'btn-outline'}`}
+                >
+                  {course.name} <span>({course.lesson_count})</span>
+                </Link>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* ARTICLES GRID */}
         <section className="section-padding">
           <div className="container">
-            {articlesRes.rows.length === 0 ? (
-              <div className="card" style={{ textAlign: 'center', padding: '60px 20px', maxWidth: '600px', margin: '0 auto' }}>
-                <BookOpen size={48} style={{ color: 'var(--color-text-subtle)', marginBottom: '16px' }} />
-                <h3 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>No lessons found</h3>
-                <p style={{ color: 'var(--color-text-muted)', marginBottom: '20px' }}>
-                  No published leadership articles matched your search query or category filter.
-                </p>
-                <Link href="/explore" className="btn btn-emerald btn-sm">
-                  Clear Filters
-                </Link>
+            {courses.length === 0 ? (
+              <div className="card course-catalog-empty">
+                <BookOpen size={42} />
+                <h2>No courses found</h2>
+                <p>Try another search or choose a different course category.</p>
+                <Link href="/explore" className="btn btn-emerald btn-sm">Show all courses</Link>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '28px' }}>
-                {articlesRes.rows.map((art) => (
-                  <article key={art.id} className="card card-interactive" style={{ display: 'flex', flexDirection: 'column' }}>
-                    {art.cover_image_url && (
-                      <Link href={`/explore/${art.slug}`} style={{ display: 'block', margin: '-28px -28px 20px', overflow: 'hidden', borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0' }}>
-                        <img src={art.cover_image_url} alt="" loading="lazy" style={{ display: 'block', width: '100%', height: '210px', objectFit: 'cover' }} />
+              <div className="course-catalog-grid">
+                {courses.map((course) => {
+                  const progress = course.lesson_count
+                    ? Math.round((Number(course.completed_lessons) / Number(course.lesson_count)) * 100)
+                    : 0;
+                  return (
+                    <article key={course.id} className="course-catalog-card">
+                      <Link href={`/courses/${course.id}`} className="course-catalog-cover-link" aria-label={`Explore ${course.name}`}>
+                        {course.cover_image_url ? (
+                          <img src={course.cover_image_url} alt="" className="course-catalog-cover" />
+                        ) : (
+                          <div className="course-catalog-cover course-catalog-cover-empty"><BookOpen size={36} /></div>
+                        )}
+                        {course.video_url && <span className="course-catalog-video"><Video size={14} /> Video course</span>}
                       </Link>
-                    )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                      <span style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <span className="badge badge-gold">{art.category_name}</span>
-                        {art.video_url && <span className="badge badge-emerald"><Video size={13} /> Video</span>}
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: 'var(--color-text-subtle)' }}>
-                        <Clock size={14} />
-                        <span>{art.reading_time_minutes} min</span>
+                      <div className="course-catalog-body">
+                        <div className="course-catalog-meta">
+                          <span className="badge badge-gold">Leadership course</span>
+                          <span className="course-lesson-count"><BookOpen size={14} /> {course.lesson_count} lessons</span>
+                        </div>
+                        <h2><Link href={`/courses/${course.id}`}>{course.name}</Link></h2>
+                        <p>{course.description || 'A step-by-step leadership course with practical lessons for student leaders.'}</p>
+                        {currentUser?.role === 'student' && Number(course.completed_lessons) > 0 && (
+                          <div className="course-progress">
+                            <div><span>Your progress</span><strong>{progress}%</strong></div>
+                            <div className="course-progress-track"><span style={{ width: `${progress}%` }} /></div>
+                          </div>
+                        )}
+                        <div className="course-catalog-footer">
+                          <span><Clock size={14} /> Study at your own pace</span>
+                          <Link href={`/courses/${course.id}`} className="btn btn-emerald btn-sm">Explore course <ArrowRight size={14} /></Link>
+                        </div>
                       </div>
-                    </div>
-
-                    <h3 style={{ fontSize: '1.25rem', marginBottom: '12px' }}>
-                      <Link href={`/explore/${art.slug}`} style={{ color: 'var(--color-forest)' }}>
-                        {art.title}
-                      </Link>
-                    </h3>
-
-                    <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', lineHeight: 1.6, flex: 1, marginBottom: '20px' }}>
-                      {art.introduction.slice(0, 160)}...
-                    </p>
-
-                    {art.learning_objectives && (
-                      <div style={{ backgroundColor: '#F8FAF9', padding: '12px 14px', borderRadius: 'var(--radius-sm)', marginBottom: '18px', fontSize: '0.82rem', color: 'var(--color-charcoal)' }}>
-                        <strong>Core Objective:</strong> {art.learning_objectives.split('\n')[0].replace(/^\d+\.\s*/, '')}
-                      </div>
-                    )}
-
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--color-border-light)', paddingTop: '14px', fontSize: '0.82rem' }}>
-                      <span style={{ color: 'var(--color-text-subtle)' }}>
-                        By {art.author_name || 'INTAMBWE Faculty'}
-                      </span>
-                      <Link href={`/explore/${art.slug}`} className="btn btn-emerald btn-sm" style={{ padding: '6px 12px' }}>
-                        <span>Study Lesson</span>
-                        <ArrowRight size={14} />
-                      </Link>
-                    </div>
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
             )}
           </div>
         </section>
       </main>
-
       <Footer />
     </>
   );

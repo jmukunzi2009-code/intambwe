@@ -102,7 +102,7 @@ intambwe/
 │   ├── explore/                      # 8 leadership pillars & article details
 │   ├── conferences/                  # Upcoming & past summits with agenda
 │   ├── resources/                    # Handbooks, worksheets & downloads
-│   ├── community/                    # Moderated dialogues & active challenges
+│   ├── community/                    # Moderated dialogues, challenges & peer notes
 │   ├── contact/                      # Contact form with PostgreSQL storage
 │   ├── login/                        # Secure session-based authentication
 │   ├── register/                     # Enforced student registration
@@ -114,6 +114,7 @@ intambwe/
 │       ├── meetings/                 # Conferences CRUD, registration, attendance
 │       ├── articles/                 # Curriculum CRUD
 │       ├── journal/                  # Student private reflections
+│       ├── notes/                    # Peer learning wall and staff moderation
 │       ├── challenges/               # Active challenges & submissions
 │       ├── contact/                  # Contact messages
 │       ├── stats/                    # Real-time DB analytics

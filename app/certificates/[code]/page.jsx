@@ -20,12 +20,13 @@ export default async function CertificateVerificationPage({ params }) {
   const res = await query(
     `SELECT c.*, u.full_name as recipient_name, sp.school_name,
             m.title as meeting_title, m.meeting_number, m.event_date,
-            a.title as article_title
+            a.title as article_title, ac.name as course_name
      FROM certificates c
      JOIN users u ON c.user_id = u.id
      LEFT JOIN student_profiles sp ON u.id = sp.user_id
      LEFT JOIN meetings m ON c.meeting_id = m.id
      LEFT JOIN articles a ON c.article_id = a.id
+     LEFT JOIN article_categories ac ON c.category_id = ac.id
      WHERE c.certificate_code = $1`,
     [code]
   );
@@ -137,6 +138,8 @@ export default async function CertificateVerificationPage({ params }) {
         }}>
           {cert.meeting_id
             ? <>In recognition of the student&apos;s verified attendance and contribution at <strong>&quot;{cert.meeting_title || cert.title}&quot;</strong>.</>
+            : cert.certificate_kind === 'course'
+              ? <>In recognition of successfully completing the <strong>&quot;{cert.course_name || cert.title}&quot;</strong>.</>
             : <>In recognition of successfully completing the online leadership lesson <strong>&quot;{cert.article_title || cert.title}&quot;</strong>.</>}
         </p>
 

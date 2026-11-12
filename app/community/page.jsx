@@ -15,6 +15,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import CommunityTopicCreator from './CommunityTopicCreator';
+import StickBoard from '@/components/StickBoard';
 
 export const metadata = {
   title: 'Youth Leadership Community | INTAMBWE',
@@ -49,6 +50,21 @@ export default async function CommunityPage() {
      ORDER BY dt.is_pinned DESC, dt.created_at DESC
      LIMIT 5`
   );
+  const notesRes = await query(
+     `SELECT n.id, n.title, n.body, n.note_kind, n.media_url, n.media_type, n.created_at,
+             u.full_name, sp.school_name, COUNT(DISTINCT likes.user_id)::int AS like_count,
+             COALESCE(BOOL_OR(my_like.user_id IS NOT NULL), false) AS liked_by_me
+      FROM stick_notes n
+      JOIN users u ON u.id = n.user_id
+      LEFT JOIN student_profiles sp ON sp.user_id = u.id
+      LEFT JOIN stick_note_likes likes ON likes.note_id = n.id
+      LEFT JOIN stick_note_likes my_like ON my_like.note_id = n.id AND my_like.user_id = $1
+      WHERE n.visibility = 'published' AND n.note_kind <> 'reflection'
+      GROUP BY n.id, u.id, sp.school_name
+      ORDER BY n.created_at DESC
+      LIMIT 80`,
+     [currentUser?.id || null]
+  );
 
   return (
     <>
@@ -79,6 +95,12 @@ export default async function CommunityPage() {
         </div>
 
         <div className="container" style={{ marginTop: '40px' }}>
+          <StickBoard
+            initialNotes={notesRes.rows}
+            canCompose={Boolean(currentUser)}
+            isLoggedIn={Boolean(currentUser)}
+          />
+
           {/* ACTIVE LEADERSHIP CHALLENGES */}
           <div style={{ marginBottom: '60px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>

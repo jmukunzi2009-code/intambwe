@@ -67,29 +67,36 @@ export async function POST(request) {
     }
 
     const body = await request.json();
+    if (!body.introduction && body.content) {
+      body.introduction = body.content.slice(0, 220).replace(/\n+/g, ' ').trim();
+    }
+    if (!body.slug && body.title) {
+      body.slug = body.title.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    }
     const validatedData = articleSchema.parse(body);
 
     const res = await query(
       `INSERT INTO articles (
         category_id, author_id, title, slug, introduction, content,
         learning_objectives, practical_exercises, critical_thinking_questions,
-        reflection_activity, reading_time_minutes, status, cover_image_url, video_url
+        reflection_activity, reading_time_minutes, sort_order, status, cover_image_url, video_url
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *`,
       [
         validatedData.categoryId,
         user.id,
         validatedData.title,
         validatedData.slug,
-        validatedData.introduction,
+        validatedData.introduction || validatedData.content.slice(0, 200),
         validatedData.content,
         validatedData.learningObjectives || null,
         validatedData.practicalExercises || null,
         validatedData.criticalThinkingQuestions || null,
         validatedData.reflectionActivity || null,
         validatedData.readingTimeMinutes || 5,
-        validatedData.status || 'draft',
+        validatedData.sortOrder || 1,
+        validatedData.status || 'published',
         validatedData.coverImageUrl || null,
         validatedData.videoUrl || null,
       ]

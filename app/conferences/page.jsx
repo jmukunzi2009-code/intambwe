@@ -5,6 +5,7 @@ import Footer from '@/components/Footer';
 import { getCurrentUser } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { Calendar, MapPin, Users, ArrowRight, CheckCircle2, Clock } from 'lucide-react';
+import styles from './conferences.module.css';
 
 export const metadata = {
   title: 'Conferences & Summits | INTAMBWE',
@@ -43,7 +44,7 @@ export default async function ConferencesPage({ searchParams }) {
   const showPast = tab === 'all' || tab === 'past';
 
   return (
-    <>
+    <div className={styles.conferencePage}>
       <Navbar currentUser={currentUser} />
 
       <main style={{ minHeight: '100vh', paddingBottom: '80px' }}>
@@ -62,7 +63,7 @@ export default async function ConferencesPage({ searchParams }) {
 
         {/* FILTER TABS */}
         <section style={{ backgroundColor: 'var(--color-white)', borderBottom: '1px solid var(--color-border)', padding: '16px 0' }}>
-          <div className="container" style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+          <div className={`container ${styles.filterTabs}`}>
             <Link 
               href="/conferences" 
               className={`btn btn-sm ${tab === 'all' ? 'btn-primary' : 'btn-outline'}`}
@@ -98,10 +99,10 @@ export default async function ConferencesPage({ searchParams }) {
                   <p style={{ color: 'var(--color-text-muted)' }}>There are no upcoming conferences scheduled at this moment. Check back soon!</p>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '28px' }}>
+                <div className={styles.conferenceGrid}>
                   {upcomingRes.rows.map((conf) => (
-                    <div key={conf.id} className="card" style={{ borderLeft: '4px solid var(--color-emerald)', display: 'flex', flexDirection: 'column' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <Link key={conf.id} href={`/conferences/${conf.id}`} className={`card ${styles.conferenceCard}`} style={{ borderLeft: '4px solid var(--color-emerald)', display: 'flex', flexDirection: 'column' }}>
+                      <div className={styles.cardMeta} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                         <span className="badge badge-emerald">
                           {conf.status.replace('_', ' ')}
                         </span>
@@ -111,9 +112,7 @@ export default async function ConferencesPage({ searchParams }) {
                       </div>
 
                       <h3 style={{ fontSize: '1.3rem', marginBottom: '8px', color: 'var(--color-forest)' }}>
-                        <Link href={`/conferences/${conf.id}`}>
-                          {conf.title}
-                        </Link>
+                        {conf.title}
                       </h3>
 
                       <div style={{ fontSize: '0.9rem', color: 'var(--color-emerald)', fontWeight: 600, marginBottom: '12px' }}>
@@ -141,16 +140,16 @@ export default async function ConferencesPage({ searchParams }) {
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--color-border-light)', paddingTop: '14px' }}>
+                      <div className={styles.cardFooter} style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--color-border-light)', paddingTop: '14px' }}>
                         <span style={{ fontSize: '0.85rem', color: 'var(--color-text-subtle)' }}>
                           <strong>{conf.reg_count}</strong> of {conf.capacity} seats registered
                         </span>
-                        <Link href={`/conferences/${conf.id}`} className="btn btn-emerald btn-sm">
+                        <span className="btn btn-emerald btn-sm">
                           <span>Details & Register</span>
                           <ArrowRight size={14} />
-                        </Link>
+                        </span>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -165,18 +164,16 @@ export default async function ConferencesPage({ searchParams }) {
                 <h2 style={{ fontSize: '1.6rem' }}>Completed Summits & Archive</h2>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '28px' }}>
+              <div className={styles.conferenceGrid}>
                 {pastRes.rows.map((conf) => (
-                  <div key={conf.id} className="card" style={{ backgroundColor: '#FCFDFC', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <Link key={conf.id} href={`/conferences/${conf.id}`} className={`card ${styles.conferenceCard}`} style={{ backgroundColor: '#FCFDFC', display: 'flex', flexDirection: 'column' }}>
+                    <div className={styles.cardMeta} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
                       <span className="badge badge-forest">Completed</span>
                       <span style={{ fontSize: '0.8rem', color: 'var(--color-text-subtle)' }}>#{conf.meeting_number}</span>
                     </div>
 
                     <h3 style={{ fontSize: '1.25rem', marginBottom: '8px' }}>
-                      <Link href={`/conferences/${conf.id}`} style={{ color: 'var(--color-forest)' }}>
-                        {conf.title}
-                      </Link>
+                      <span style={{ color: 'var(--color-forest)' }}>{conf.title}</span>
                     </h3>
 
                     <div style={{ fontSize: '0.88rem', color: 'var(--color-emerald)', fontWeight: 600, marginBottom: '12px' }}>
@@ -193,15 +190,15 @@ export default async function ConferencesPage({ searchParams }) {
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--color-border-light)', paddingTop: '14px', fontSize: '0.82rem' }}>
+                    <div className={styles.cardFooter} style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--color-border-light)', paddingTop: '14px', fontSize: '0.82rem' }}>
                       <span style={{ color: 'var(--color-text-subtle)' }}>
                         Held on {new Date(conf.event_date).toLocaleDateString()}
                       </span>
-                      <Link href={`/conferences/${conf.id}`} className="btn btn-outline btn-sm">
+                      <span className="btn btn-outline btn-sm">
                         View Summit Report
-                      </Link>
+                      </span>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -210,6 +207,6 @@ export default async function ConferencesPage({ searchParams }) {
       </main>
 
       <Footer />
-    </>
+    </div>
   );
 }

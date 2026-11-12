@@ -1,0 +1,156 @@
+.filterTabs {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.conferenceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 28px;
+}
+
+.conferenceCard {
+  min-width: 0;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.conferenceCard:hover {
+  transform: translateY(-3px);
+  border-color: var(--color-emerald);
+  text-decoration: none;
+}
+
+.conferenceCard:focus-visible {
+  outline: 3px solid var(--color-gold);
+  outline-offset: 3px;
+}
+
+.cardMeta,
+.cardFooter {
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.cardFooter {
+  align-items: center;
+}
+
+.detailHero {
+  padding: 50px 0 40px;
+}
+
+.detailHeroContent,
+.detailLayout,
+.detailColumn {
+  min-width: 0;
+}
+
+.heroMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.heroTitle,
+.heroTheme,
+.heroFacts > div,
+.detailColumn,
+.detailColumn .card {
+  overflow-wrap: anywhere;
+}
+
+.heroFacts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding-top: 20px;
+  font-size: 0.92rem;
+  color: #d1dbd5;
+}
+
+.detailLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 36px;
+  align-items: flex-start;
+}
+
+@media (max-width: 960px) {
+  .detailLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.detailColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.sidebarSticky {
+  position: sticky;
+  top: 90px;
+}
+
+.galleryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 14px;
+}
+
+.rosterHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.registrationStats {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  .filterTabs > a {
+    flex: 1 1 100%;
+    max-width: 360px;
+  }
+
+  .cardFooter > .btn {
+    width: 100%;
+  }
+
+  .detailHero {
+    padding: 36px 0 28px;
+  }
+
+  .detailLayout,
+  .detailColumn {
+    gap: 24px;
+  }
+
+  .rosterHeading .badge {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 360px) {
+  .conferencePage :global(.nav-tagline) {
+    display: none;
+  }
+}

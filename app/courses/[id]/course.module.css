@@ -1,0 +1,389 @@
+.page {
+  min-height: 100vh;
+  padding-bottom: 80px;
+  background: #f5f8f6;
+}
+
+.hero {
+  padding: 58px 0 52px;
+  color: #fff;
+  background:
+    radial-gradient(ellipse at 86% 12%, rgba(212, 167, 44, 0.2), transparent 34%),
+    linear-gradient(120deg, #102b21, #1d5b41);
+}
+
+.heroInner {
+  max-width: 1050px;
+}
+
+.backLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 28px;
+  color: #d7e5dc;
+  font-size: 0.9rem;
+}
+
+.hero h1 {
+  margin: 18px 0 12px;
+  color: #fff;
+  font-size: clamp(2.2rem, 5vw, 3.6rem);
+  overflow-wrap: anywhere;
+}
+
+.hero p {
+  max-width: 720px;
+  color: #d7e5dc;
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.heroActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.authActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.content {
+  max-width: 1160px;
+  margin-top: 42px;
+}
+
+.courseLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(270px, 0.8fr);
+  align-items: start;
+  gap: 28px;
+}
+
+.lessonSection,
+.courseAside {
+  min-width: 0;
+}
+
+.lessonSection {
+  padding: 30px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.sectionHeading h2 {
+  margin: 10px 0 5px;
+  color: var(--color-forest);
+  font-size: 1.55rem;
+}
+
+.sectionHeading p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.progressSummary {
+  display: grid;
+  min-width: 110px;
+  gap: 2px;
+  text-align: right;
+}
+
+.progressSummary strong {
+  color: var(--color-emerald);
+  font-size: 1.5rem;
+}
+
+.progressSummary span {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+.lessonList {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lessonItem {
+  min-width: 0;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  background: #fbfdfb;
+  transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.lessonItem:hover {
+  transform: translateY(-2px);
+  border-color: rgba(22, 122, 80, 0.45);
+  box-shadow: var(--shadow-sm);
+}
+
+.lessonComplete {
+  border-color: rgba(22, 122, 80, 0.35);
+  background: #f1f8f3;
+}
+
+.lessonLink,
+.lessonLocked {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  color: inherit;
+}
+
+.lessonNumber {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border-radius: 50%;
+  background: #e8f2eb;
+  color: var(--color-emerald);
+  font-weight: 800;
+}
+
+.lessonImage {
+  width: 72px;
+  height: 58px;
+  flex: 0 0 72px;
+  border-radius: 9px;
+  object-fit: cover;
+}
+
+.lessonCopy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 4px;
+}
+
+.lessonCopy strong,
+.lessonCopy > span {
+  overflow-wrap: anywhere;
+}
+
+.lessonCopy strong {
+  color: var(--color-forest);
+}
+
+.lessonCopy > span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.83rem;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.lessonCopy small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-text-subtle);
+}
+
+.lessonLock,
+.lessonArrow {
+  flex: 0 0 auto;
+  color: var(--color-emerald);
+}
+
+.lessonLock {
+  color: var(--color-text-subtle);
+}
+
+.courseAside {
+  display: grid;
+  gap: 18px;
+}
+
+.courseCover {
+  display: block;
+  width: 100%;
+  max-height: 300px;
+  border-radius: var(--radius-lg);
+  object-fit: cover;
+}
+
+.courseAside .card {
+  padding: 24px;
+}
+
+.courseAside h3 {
+  margin: 14px 0 8px;
+  color: var(--color-forest);
+}
+
+.courseAside p,
+.courseAside li {
+  color: var(--color-text-muted);
+  font-size: 0.87rem;
+  line-height: 1.6;
+}
+
+.courseAside ul {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.courseAside li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.courseAside li svg {
+  flex: 0 0 auto;
+  margin-top: 3px;
+  color: var(--color-emerald);
+}
+
+.videoCard {
+  overflow: hidden;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: #10251c;
+}
+
+.videoCard h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  color: #efd589;
+  font-size: 0.95rem;
+}
+
+.videoCard video {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  border-radius: var(--radius-md);
+}
+
+.videoFrame {
+  position: relative;
+  height: 0;
+  overflow: hidden;
+  padding-bottom: 56.25%;
+  border-radius: var(--radius-md);
+}
+
+.videoFrame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.emptyLessons {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 36px 20px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.emptyLessons svg {
+  color: var(--color-emerald);
+}
+
+.emptyLessons h3,
+.emptyLessons p {
+  margin: 0;
+}
+
+.course-spin {
+  animation: course-spin 1s linear infinite;
+}
+
+@keyframes course-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 900px) {
+  .courseLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .courseAside {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    align-items: start;
+  }
+}
+
+@media (max-width: 600px) {
+  .hero {
+    padding: 38px 0;
+  }
+
+  .content {
+    margin-top: 24px;
+  }
+
+  .lessonSection {
+    padding: 20px 14px;
+  }
+
+  .lessonLink,
+  .lessonLocked {
+    gap: 9px;
+    padding: 12px 9px;
+  }
+
+  .lessonNumber {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+    font-size: 0.78rem;
+  }
+
+  .lessonImage {
+    width: 52px;
+    height: 46px;
+    flex-basis: 52px;
+  }
+
+  .lessonCopy > span {
+    font-size: 0.77rem;
+  }
+
+  .authActions,
+  .authActions > a,
+  .heroActions > div,
+  .heroActions > div > button {
+    width: 100%;
+  }
+}

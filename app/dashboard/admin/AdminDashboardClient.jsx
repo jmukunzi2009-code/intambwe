@@ -29,7 +29,12 @@ import {
   ExternalLink,
   ShieldCheck,
   FileUp,
-  Video
+  Video,
+  Pencil,
+  Quote,
+  Sparkles,
+  Heart,
+  FileText
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -91,14 +96,73 @@ export default function AdminDashboardClient({
   initialAuditLogs,
   categories,
   resourceCategories,
-  schools 
+  schools,
+  initialTeam = [],
+  initialMoments = [],
+  initialNotes = []
 }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [users, setUsers] = useState(initialUsers);
   const [meetings, setMeetings] = useState(initialMeetings);
   const [articles, setArticles] = useState(initialArticles);
+  const [courseCategories, setCourseCategories] = useState(categories || []);
+  const [categoriesList, setCategoriesList] = useState(categories || []);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
+  const [categoryForm, setCategoryForm] = useState({
+    name: '',
+    slug: '',
+    description: '',
+    iconName: 'BookOpen',
+    coverImageUrl: '',
+    videoUrl: '',
+    status: 'published',
+  });
+
+  const [stickNotes, setStickNotes] = useState(initialNotes || []);
+  const [stickNotesLoading, setStickNotesLoading] = useState(false);
+  const [stickNotesError, setStickNotesError] = useState('');
+  const [stickNoteFilter, setStickNoteFilter] = useState('all');
+  const [showEditStickNoteModal, setShowEditStickNoteModal] = useState(false);
+  const [editingStickNote, setEditingStickNote] = useState(null);
+  const [stickNoteForm, setStickNoteForm] = useState({
+    title: '',
+    body: '',
+    noteKind: 'quote',
+    mediaUrl: '',
+    mediaType: 'none',
+    visibility: 'published',
+  });
+
+  const [showEditResourceModal, setShowEditResourceModal] = useState(false);
+  const [editingResource, setEditingResource] = useState(null);
   const [resources, setResources] = useState(initialResources);
   const [messages, setMessages] = useState(initialMessages);
+
+  // Curriculum category-by-category view state
+  const [selectedCourseFilter, setSelectedCourseFilter] = useState('all');
+
+  // Team & Moments CMS State
+  const [teamMembers, setTeamMembers] = useState(initialTeam || []);
+  const [communityMoments, setCommunityMoments] = useState(initialMoments || []);
+  const [showTeamModal, setShowTeamModal] = useState(false);
+  const [editingTeamMember, setEditingTeamMember] = useState(null);
+  const [teamForm, setTeamForm] = useState({ name: '', role: '', bio: '', imageUrl: '/about/profile.png', sortOrder: 0 });
+
+  const [showMomentModal, setShowMomentModal] = useState(false);
+  const [editingMoment, setEditingMoment] = useState(null);
+  const [momentForm, setMomentForm] = useState({ title: '', description: '', imageUrl: '/about/group-photo.jpg', authorQuote: '', authorName: '', sortOrder: 0 });
+
+  // Add Stick Note Modal State
+  const [showAddStickNoteModal, setShowAddStickNoteModal] = useState(false);
+  const [newStickNoteInput, setNewStickNoteInput] = useState({
+    title: '',
+    body: '',
+    noteKind: 'quote',
+    mediaUrl: '',
+    mediaType: 'none',
+    visibility: 'published',
+  });
   const [meetingYearFilter, setMeetingYearFilter] = useState('all');
   const [editingMeetingId, setEditingMeetingId] = useState(null);
   const [editingArticleId, setEditingArticleId] = useState(null);
@@ -580,6 +644,353 @@ export default function AdminDashboardClient({
     }
   };
 
+  // --- STICK NOTES HANDLERS ---
+  const fetchStickNotes = async () => {
+    setStickNotesLoading(true);
+    setStickNotesError('');
+    try {
+      const res = await fetch('/api/notes?manage=1');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load stick notes');
+      setStickNotes(data.notes || []);
+    } catch (err) {
+      console.error(err);
+      setStickNotesError(err.message);
+    } finally {
+      setStickNotesLoading(false);
+    }
+  };
+
+  const handleCreateStickNote = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newStickNoteInput),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create stick note');
+      setStickNotes((prev) => [data.note, ...prev]);
+      setShowAddStickNoteModal(false);
+      setNewStickNoteInput({
+        title: '',
+        body: '',
+        noteKind: 'quote',
+        mediaUrl: '',
+        mediaType: 'none',
+        visibility: 'published',
+      });
+      alert(data.message || 'Stick note shared on community wall!');
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleOpenEditStickNote = (note) => {
+    setEditingStickNote(note);
+    setStickNoteForm({
+      title: note.title || '',
+      body: note.body || '',
+      noteKind: note.note_kind || 'quote',
+      mediaUrl: note.media_url || '',
+      mediaType: note.media_type || 'none',
+      visibility: note.visibility || 'published',
+    });
+    setShowEditStickNoteModal(true);
+  };
+
+  const handleSaveEditStickNote = async (e) => {
+    e.preventDefault();
+    if (!editingStickNote) return;
+    try {
+      const res = await fetch('/api/notes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          noteId: editingStickNote.id,
+          ...stickNoteForm,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update stick note');
+      setStickNotes((prev) => prev.map((n) => (n.id === editingStickNote.id ? { ...n, ...data.note } : n)));
+      setShowEditStickNoteModal(false);
+      setEditingStickNote(null);
+      alert('Stick note updated successfully!');
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteStickNote = async (note) => {
+    if (!confirm(`Permanently delete stick note "${note.title}"?`)) return;
+    try {
+      const res = await fetch(`/api/notes?id=${note.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete stick note');
+      setStickNotes((prev) => prev.filter((n) => n.id !== note.id));
+      alert('Stick note deleted.');
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleToggleStickNoteVisibility = async (note, newVisibility) => {
+    try {
+      const res = await fetch('/api/notes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          noteId: note.id,
+          visibility: newVisibility,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update visibility');
+      setStickNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, visibility: newVisibility } : n)));
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // --- CATEGORY & COURSE CMS HANDLERS ---
+  const handleOpenCategoryModal = (cat = null) => {
+    if (cat) {
+      setEditingCategoryId(cat.id);
+      setCategoryForm({
+        name: cat.name || '',
+        slug: cat.slug || '',
+        description: cat.description || '',
+        iconName: cat.icon_name || 'BookOpen',
+        coverImageUrl: cat.cover_image_url || '',
+        videoUrl: cat.video_url || '',
+        status: cat.status || 'published',
+      });
+    } else {
+      setEditingCategoryId(null);
+      setCategoryForm({
+        name: '',
+        slug: '',
+        description: '',
+        iconName: 'BookOpen',
+        coverImageUrl: '',
+        videoUrl: '',
+        status: 'published',
+      });
+    }
+    setShowCategoryModal(true);
+  };
+
+  const handleSaveCategory = async (e) => {
+    e.preventDefault();
+    try {
+      const url = editingCategoryId ? `/api/categories/${editingCategoryId}` : '/api/categories';
+      const method = editingCategoryId ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(categoryForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save course category');
+
+      if (editingCategoryId) {
+        setCourseCategories((prev) => prev.map((c) => (c.id === editingCategoryId ? { ...c, ...data.category } : c)));
+        setCategoriesList((prev) => prev.map((c) => (c.id === editingCategoryId ? { ...c, ...data.category } : c)));
+        alert('Course category updated successfully!');
+      } else {
+        setCourseCategories((prev) => [...prev, data.category]);
+        setCategoriesList((prev) => [...prev, data.category]);
+        alert('Course category created successfully!');
+      }
+      setShowCategoryModal(false);
+      setEditingCategoryId(null);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteCategory = async (cat) => {
+    if (!confirm(`Delete course category "${cat.name}"? Articles in this course will be unassigned.`)) return;
+    try {
+      const res = await fetch(`/api/categories/${cat.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete category');
+      setCourseCategories((prev) => prev.filter((c) => c.id !== cat.id));
+      setCategoriesList((prev) => prev.filter((c) => c.id !== cat.id));
+      if (selectedCourseFilter === String(cat.id)) {
+        setSelectedCourseFilter('all');
+      }
+      alert('Course category removed.');
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleToggleArticleStatus = async (article, newStatus) => {
+    try {
+      const res = await fetch(`/api/articles/${article.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update lesson status');
+      setArticles((prev) => prev.map((a) => (a.id === article.id ? { ...a, status: newStatus } : a)));
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // --- ABOUT US CMS HANDLERS ---
+  const handleOpenTeamModal = (member = null) => {
+    if (member) {
+      setEditingTeamMember(member);
+      setTeamForm({
+        name: member.name || '',
+        role: member.role || '',
+        bio: member.bio || '',
+        imageUrl: member.image_url || '/about/profile.png',
+        sortOrder: member.sort_order || 0,
+      });
+    } else {
+      setEditingTeamMember(null);
+      setTeamForm({
+        name: '',
+        role: '',
+        bio: '',
+        imageUrl: '/about/profile.png',
+        sortOrder: teamMembers.length + 1,
+      });
+    }
+    setShowTeamModal(true);
+  };
+
+  const handleSaveTeamMember = async (e) => {
+    e.preventDefault();
+    try {
+      const url = editingTeamMember ? `/api/team/${editingTeamMember.id}` : '/api/team';
+      const method = editingTeamMember ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(teamForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save team member');
+
+      if (editingTeamMember) {
+        setTeamMembers((prev) => prev.map((m) => (m.id === editingTeamMember.id ? data.member : m)));
+        alert('Team profile updated!');
+      } else {
+        setTeamMembers((prev) => [...prev, data.member]);
+        alert('Team profile added!');
+      }
+      setShowTeamModal(false);
+      setEditingTeamMember(null);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteTeamMember = async (member) => {
+    if (!confirm(`Delete team profile for "${member.name}"?`)) return;
+    try {
+      const res = await fetch(`/api/team/${member.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete team member');
+      setTeamMembers((prev) => prev.filter((m) => m.id !== member.id));
+      alert('Team profile removed.');
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleOpenMomentModal = (moment = null) => {
+    if (moment) {
+      setEditingMoment(moment);
+      setMomentForm({
+        title: moment.title || '',
+        description: moment.description || '',
+        imageUrl: moment.image_url || '/about/group-photo.jpg',
+        authorQuote: moment.author_quote || '',
+        authorName: moment.author_name || '',
+        sortOrder: moment.sort_order || 0,
+      });
+    } else {
+      setEditingMoment(null);
+      setMomentForm({
+        title: '',
+        description: '',
+        imageUrl: '/about/group-photo.jpg',
+        authorQuote: '',
+        authorName: '',
+        sortOrder: communityMoments.length + 1,
+      });
+    }
+    setShowMomentModal(true);
+  };
+
+  const handleSaveMoment = async (e) => {
+    e.preventDefault();
+    try {
+      const url = editingMoment ? `/api/moments/${editingMoment.id}` : '/api/moments';
+      const method = editingMoment ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(momentForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save community moment');
+
+      if (editingMoment) {
+        setCommunityMoments((prev) => prev.map((m) => (m.id === editingMoment.id ? data.moment : m)));
+        alert('Community moment updated!');
+      } else {
+        setCommunityMoments((prev) => [data.moment, ...prev]);
+        alert('Community moment published!');
+      }
+      setShowMomentModal(false);
+      setEditingMoment(null);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteMoment = async (moment) => {
+    if (!confirm(`Delete moment "${moment.title}"?`)) return;
+    try {
+      const res = await fetch(`/api/moments/${moment.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete moment');
+      setCommunityMoments((prev) => prev.filter((m) => m.id !== moment.id));
+      alert('Community moment deleted.');
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // --- INSTANT FILE UPLOAD HELPER ---
+  const handleFileUpload = async (file, onUploaded) => {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      onUploaded(data.url);
+      alert('File uploaded successfully!');
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const filteredUsers = users.filter((u) =>
     u.full_name?.toLowerCase().includes(userSearch.toLowerCase()) ||
     u.email?.toLowerCase().includes(userSearch.toLowerCase()) ||
@@ -777,6 +1188,51 @@ export default function AdminDashboardClient({
           </button>
 
           <button 
+            onClick={() => {
+              setActiveTab('notes');
+              if (stickNotes.length === 0) fetchStickNotes();
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '12px 16px',
+              borderRadius: 'var(--radius-md)',
+              border: 'none',
+              backgroundColor: activeTab === 'notes' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+              color: 'white',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontSize: '0.9rem',
+              fontWeight: 500,
+            }}
+          >
+            <Quote size={18} style={{ color: 'var(--color-gold)' }} />
+            <span>Sticky Notes &amp; Quotes Wall</span>
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('about_cms')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '12px 16px',
+              borderRadius: 'var(--radius-md)',
+              border: 'none',
+              backgroundColor: activeTab === 'about_cms' ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+              color: 'white',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontSize: '0.9rem',
+              fontWeight: 500,
+            }}
+          >
+            <Sparkles size={18} style={{ color: 'var(--color-gold)' }} />
+            <span>About Us Page CMS</span>
+          </button>
+
+          <button 
             onClick={() => setActiveTab('resources')}
             style={{
               display: 'flex',
@@ -875,11 +1331,39 @@ export default function AdminDashboardClient({
               {activeTab === 'learning' && 'Student Learning Activity'}
               {activeTab === 'resources' && 'Learning Resources & Digital Downloads'}
               {activeTab === 'messages' && 'Incoming Contact Communications'}
+              {activeTab === 'notes' && 'Sticky Notes, Quotes & Wall Moderation'}
+              {activeTab === 'about_cms' && 'About Us CMS (Leadership Team & Community Moments)'}
               {activeTab === 'audit' && 'Security & Operational Audit Trail'}
             </h2>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {activeTab === 'notes' && (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={fetchStickNotes} className="btn btn-outline btn-sm">
+                  <RefreshCw size={14} className={stickNotesLoading ? 'spin' : ''} />
+                  <span>Refresh Wall</span>
+                </button>
+                <button onClick={() => setShowAddStickNoteModal(true)} className="btn btn-emerald btn-sm">
+                  <Plus size={16} />
+                  <span>Add Note / Quote</span>
+                </button>
+              </div>
+            )}
+
+            {activeTab === 'about_cms' && (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => handleOpenTeamModal()} className="btn btn-emerald btn-sm">
+                  <Plus size={16} />
+                  <span>Add Team Member</span>
+                </button>
+                <button onClick={() => handleOpenMomentModal()} className="btn btn-gold btn-sm">
+                  <Plus size={16} />
+                  <span>Add Moment</span>
+                </button>
+              </div>
+            )}
+
             {activeTab === 'resources' && (
               <button onClick={() => setShowResourceModal(true)} className="btn btn-emerald btn-sm">
                 <Plus size={16} />
@@ -1561,76 +2045,298 @@ export default function AdminDashboardClient({
             </div>
           )}
 
-          {/* 6. ARTICLES CMS TAB */}
+          {/* 6. ARTICLES & COURSE CMS TAB */}
           {activeTab === 'articles' && (
             <div>
-              <div className="card" style={{ marginBottom: '20px', padding: '22px 26px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap' }}>
-                <div>
-                  <h3 style={{ fontSize: '1.2rem', marginBottom: '5px' }}>Publish learning that students can see and hear</h3>
-                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
-                    Add a cover image and a video link to make each leadership lesson more engaging.
-                  </p>
+              {/* CATEGORY & COURSE FILTER PILLS */}
+              <div className="card" style={{ marginBottom: '24px', padding: '18px 22px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.25rem', color: 'var(--color-forest)', margin: 0 }}>
+                      Curriculum &amp; Course Builder Studio
+                    </h3>
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.86rem', margin: '4px 0 0 0' }}>
+                      Select a leadership course to manage its units and lessons, or click &ldquo;+ Add Course&rdquo; to create a new curriculum track.
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button onClick={() => handleOpenCategoryModal()} className="btn btn-emerald btn-sm">
+                      <Plus size={15} /> <span>Add Course / Category</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setEditingArticleId(null);
+                        const targetCatId = selectedCourseFilter === 'all' ? (courseCategories[0]?.id || 1) : Number(selectedCourseFilter);
+                        setNewArticle({
+                          title: '', slug: '', categoryId: targetCatId, introduction: '', content: '',
+                          learningObjectives: '', practicalExercises: '', criticalThinkingQuestions: '',
+                          reflectionActivity: '', readingTimeMinutes: 5, coverImageUrl: '', videoUrl: '', status: 'published',
+                        });
+                        setShowArticleModal(true);
+                      }} 
+                      className="btn btn-gold btn-sm"
+                    >
+                      <Plus size={15} /> <span>Add Lesson</span>
+                    </button>
+                  </div>
                 </div>
-                <span className="badge badge-emerald"><FileUp size={14} /> Images & video links supported</span>
+
+                {/* FILTER PILLS */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', borderTop: '1px solid var(--color-border-light)', paddingTop: '12px' }}>
+                  <button
+                    onClick={() => setSelectedCourseFilter('all')}
+                    className={`btn btn-sm ${selectedCourseFilter === 'all' ? 'btn-primary' : 'btn-outline'}`}
+                    style={{ fontSize: '0.82rem', padding: '6px 14px' }}
+                  >
+                    All Curriculum ({articles.length})
+                  </button>
+                  {courseCategories.map((c) => {
+                    const count = articles.filter((a) => Number(a.category_id) === Number(c.id)).length;
+                    const isSelected = String(selectedCourseFilter) === String(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => setSelectedCourseFilter(String(c.id))}
+                        className={`btn btn-sm ${isSelected ? 'btn-emerald' : 'btn-outline'}`}
+                        style={{ fontSize: '0.82rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <span>{c.name}</span>
+                        <span style={{ fontSize: '0.74rem', opacity: 0.85, background: isSelected ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.06)', padding: '1px 6px', borderRadius: '10px' }}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="data-table-container">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Title</th>
-                      <th>Category</th>
-                      <th>Reading Time</th>
-                      <th>Cover Image / Video</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {articles.map((art) => (
-                      <tr key={art.id}>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '220px' }}>
-                            {art.cover_image_url ? (
-                              <img src={art.cover_image_url} alt="" loading="lazy" style={{ width: '52px', height: '48px', objectFit: 'cover', borderRadius: '8px', flexShrink: 0 }} />
+
+              {/* COURSE DETAILS & SPECIFIC LESSONS */}
+              {selectedCourseFilter !== 'all' ? (() => {
+                const selectedCat = courseCategories.find((c) => String(c.id) === String(selectedCourseFilter));
+                const courseLessons = articles
+                  .filter((a) => Number(a.category_id) === Number(selectedCourseFilter))
+                  .sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) || Number(a.id) - Number(b.id));
+
+                if (!selectedCat) return null;
+
+                return (
+                  <div>
+                    {/* COURSE HEADER BANNER */}
+                    <div className="card" style={{ marginBottom: '24px', padding: '24px', borderLeft: '4px solid var(--color-emerald)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+                      <div style={{ flex: 1, minWidth: '280px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                          <span className="badge badge-emerald">{selectedCat.status || 'published'}</span>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--color-text-subtle)' }}>Slug: <code>{selectedCat.slug}</code></span>
+                        </div>
+                        <h2 style={{ fontSize: '1.4rem', color: 'var(--color-forest)', marginBottom: '8px' }}>
+                          {selectedCat.name}
+                        </h2>
+                        <p style={{ color: 'var(--color-text-muted)', fontSize: '0.92rem', lineHeight: 1.6, maxWidth: '750px' }}>
+                          {selectedCat.description || 'Leadership development track empowering secondary school leaders with practical skills.'}
+                        </p>
+                      </div>
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        <button
+                          onClick={() => {
+                            setEditingArticleId(null);
+                            setNewArticle({
+                              title: '', slug: '', categoryId: selectedCat.id, introduction: '', content: '',
+                              learningObjectives: '', practicalExercises: '', criticalThinkingQuestions: '',
+                              reflectionActivity: '', readingTimeMinutes: 5, coverImageUrl: '', videoUrl: '', status: 'published',
+                            });
+                            setShowArticleModal(true);
+                          }}
+                          className="btn btn-emerald btn-sm"
+                        >
+                          <Plus size={15} /> <span>Add Lesson to this Course</span>
+                        </button>
+                        <button onClick={() => handleOpenCategoryModal(selectedCat)} className="btn btn-outline btn-sm">
+                          <Pencil size={14} /> <span>Edit Course</span>
+                        </button>
+                        <Link href={`/courses/${selectedCat.id}`} className="btn btn-outline btn-sm">
+                          <Eye size={14} /> <span>Preview</span>
+                        </Link>
+                        <button 
+                          onClick={() => handleDeleteCategory(selectedCat)} 
+                          className="btn btn-outline btn-sm"
+                          style={{ color: 'var(--color-danger)' }}
+                        >
+                          <Trash2 size={14} /> <span>Delete</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* LESSONS CARDS GRID */}
+                    <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h4 style={{ fontSize: '1.1rem', color: 'var(--color-forest)' }}>
+                        Lessons in this Course ({courseLessons.length})
+                      </h4>
+                      <span style={{ fontSize: '0.82rem', color: 'var(--color-text-subtle)' }}>
+                        Organized sequentially for students
+                      </span>
+                    </div>
+
+                    {courseLessons.length === 0 ? (
+                      <div className="card" style={{ textAlign: 'center', padding: '48px 24px', backgroundColor: '#FFFFFF' }}>
+                        <BookOpen size={36} style={{ color: 'var(--color-emerald)', margin: '0 auto 12px auto' }} />
+                        <h4 style={{ fontSize: '1.1rem' }}>No lessons added to &ldquo;{selectedCat.name}&rdquo; yet</h4>
+                        <p style={{ color: 'var(--color-text-muted)', marginBottom: '20px', maxWidth: '440px', margin: '8px auto 20px auto' }}>
+                          Start building this course by adding its first lesson with reading content, video masterclass, and practical reflection.
+                        </p>
+                        <button
+                          onClick={() => {
+                            setEditingArticleId(null);
+                            setNewArticle({
+                              title: '', slug: '', categoryId: selectedCat.id, introduction: '', content: '',
+                              learningObjectives: '', practicalExercises: '', criticalThinkingQuestions: '',
+                              reflectionActivity: '', readingTimeMinutes: 5, coverImageUrl: '', videoUrl: '', status: 'published',
+                            });
+                            setShowArticleModal(true);
+                          }}
+                          className="btn btn-emerald btn-sm"
+                        >
+                          <Plus size={15} /> <span>Add First Lesson</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: '20px' }}>
+                        {courseLessons.map((art, index) => (
+                          <div 
+                            key={art.id} 
+                            className="card"
+                            style={{ 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              overflow: 'hidden',
+                              borderRadius: '12px',
+                              border: '1px solid rgba(20, 36, 56, 0.08)',
+                              transition: 'transform 200ms ease, box-shadow 200ms ease'
+                            }}
+                          >
+                            <div style={{ height: '140px', width: '100%', position: 'relative', backgroundColor: 'var(--color-bg-soft)', overflow: 'hidden' }}>
+                              {art.cover_image_url ? (
+                                <img src={art.cover_image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ) : (
+                                <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: 'var(--color-emerald)', background: 'var(--color-success-soft)' }}>
+                                  <BookOpen size={32} />
+                                </div>
+                              )}
+                              <div style={{ position: 'absolute', top: '10px', left: '10px' }}>
+                                <span className="badge badge-forest" style={{ fontSize: '0.72rem', fontWeight: 800 }}>
+                                  Lesson {String(index + 1).padStart(2, '0')}
+                                </span>
+                              </div>
+                              <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
+                                <span className={`badge ${art.status === 'published' ? 'badge-emerald' : 'badge-gold'}`} style={{ fontSize: '0.72rem' }}>
+                                  {art.status}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div style={{ padding: '18px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                              <h4 style={{ fontSize: '1.05rem', color: 'var(--color-forest)', marginBottom: '8px', lineHeight: 1.4 }}>
+                                {art.title}
+                              </h4>
+                              <p style={{ fontSize: '0.84rem', color: 'var(--color-text-muted)', lineHeight: 1.5, flex: 1, marginBottom: '16px' }}>
+                                {art.introduction ? art.introduction.slice(0, 110) + '...' : 'Interactive leadership lesson with practical applications.'}
+                              </p>
+
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--color-text-subtle)', marginBottom: '14px', borderTop: '1px solid var(--color-border-light)', paddingTop: '10px' }}>
+                                <span>{art.reading_time_minutes} min read</span>
+                                {art.video_url && <span style={{ color: 'var(--color-gold-hover)', fontWeight: 600 }}>✓ Video Masterclass</span>}
+                              </div>
+
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <Link href={`/explore/${art.slug}`} className="btn btn-outline btn-sm" style={{ padding: '4px 8px', fontSize: '0.74rem' }}>
+                                  Preview
+                                </Link>
+                                <button onClick={() => handleEditArticle(art)} className="btn btn-emerald btn-sm" style={{ padding: '4px 8px', fontSize: '0.74rem' }}>
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleToggleArticleStatus(art, art.status === 'published' ? 'draft' : 'published')}
+                                  className="btn btn-outline btn-sm"
+                                  style={{ padding: '4px 8px', fontSize: '0.74rem' }}
+                                >
+                                  {art.status === 'published' ? 'Draft' : 'Publish'}
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteArticle(art)} 
+                                  className="btn btn-outline btn-sm" 
+                                  style={{ padding: '4px 8px', fontSize: '0.74rem', color: 'var(--color-danger)' }}
+                                  title="Delete lesson"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })() : (
+                /* ALL COURSES OVERVIEW */
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' }}>
+                    {courseCategories.map((course) => {
+                      const count = articles.filter((a) => Number(a.category_id) === Number(course.id)).length;
+                      return (
+                        <div key={course.id} className="card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '14px', border: '1px solid rgba(20, 36, 56, 0.08)' }}>
+                          <div style={{ height: '160px', width: '100%', position: 'relative', backgroundColor: '#142438' }}>
+                            {course.cover_image_url ? (
+                              <img src={course.cover_image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             ) : (
-                              <div style={{ width: '52px', height: '48px', display: 'grid', placeItems: 'center', background: 'var(--color-success-soft)', color: 'var(--color-emerald)', borderRadius: '8px', flexShrink: 0 }}>
-                                <BookOpen size={19} />
+                              <div style={{ height: '100%', display: 'grid', placeItems: 'center', color: 'var(--color-gold)' }}>
+                                <BookOpen size={40} />
                               </div>
                             )}
-                            <span style={{ fontWeight: 600 }}>{art.title}</span>
+                            <div style={{ position: 'absolute', top: '12px', right: '12px' }}>
+                              <span className="badge badge-emerald">{count} {count === 1 ? 'lesson' : 'lessons'}</span>
+                            </div>
                           </div>
-                        </td>
-                        <td>
-                          <span className="badge badge-gold">{art.category_name}</span>
-                        </td>
-                        <td>{art.reading_time_minutes} min</td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: 'var(--color-text-subtle)' }}>
-                            {art.cover_image_url && <span style={{ color: 'var(--color-emerald)' }}>✓ Photo</span>}
-                            {art.video_url && <span style={{ color: 'var(--color-gold-hover)' }}>✓ Video</span>}
+                          <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            <h3 style={{ fontSize: '1.2rem', color: 'var(--color-forest)', marginBottom: '8px' }}>
+                              {course.name}
+                            </h3>
+                            <p style={{ fontSize: '0.86rem', color: 'var(--color-text-muted)', lineHeight: 1.5, flex: 1, marginBottom: '18px' }}>
+                              {course.description || 'Practical youth leadership course curriculum and critical thinking exercises.'}
+                            </p>
+                            <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--color-border-light)', paddingTop: '14px' }}>
+                              <button
+                                onClick={() => setSelectedCourseFilter(String(course.id))}
+                                className="btn btn-emerald btn-sm"
+                                style={{ flex: 1 }}
+                              >
+                                View Lessons ({count})
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingArticleId(null);
+                                  setNewArticle({
+                                    title: '', slug: '', categoryId: course.id, introduction: '', content: '',
+                                    learningObjectives: '', practicalExercises: '', criticalThinkingQuestions: '',
+                                    reflectionActivity: '', readingTimeMinutes: 5, coverImageUrl: '', videoUrl: '', status: 'published',
+                                  });
+                                  setShowArticleModal(true);
+                                }}
+                                className="btn btn-outline btn-sm"
+                              >
+                                + Lesson
+                              </button>
+                              <button onClick={() => handleOpenCategoryModal(course)} className="btn btn-outline btn-sm">
+                                <Pencil size={13} />
+                              </button>
+                            </div>
                           </div>
-                        </td>
-                        <td>
-                          <span className="badge badge-emerald">{art.status}</span>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', minWidth: '180px' }}>
-                            <Link href={`/explore/${art.slug}`} className="btn btn-outline btn-sm" style={{ padding: '4px 9px', fontSize: '0.75rem' }}>
-                              View
-                            </Link>
-                            <button onClick={() => handleEditArticle(art)} className="btn btn-emerald btn-sm" style={{ padding: '4px 9px', fontSize: '0.75rem' }}>
-                              Edit
-                            </button>
-                            <button onClick={() => handleDeleteArticle(art)} className="btn btn-outline btn-sm" style={{ padding: '4px 8px', color: 'var(--color-danger)' }} aria-label={`Delete ${art.title}`}>
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1795,6 +2501,270 @@ export default function AdminDashboardClient({
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* ABOUT US & TEAM PROFILES TAB */}
+          {activeTab === 'about_cms' && (
+            <div>
+              {/* SECTION 1: THE PEOPLE BEHIND EACH STEP */}
+              <div className="card" style={{ marginBottom: '24px', padding: '22px 26px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', marginBottom: '4px' }}>The people behind each step — Team Profiles</h3>
+                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem' }}>
+                    Add, edit, or update team member photos, titles, and bios displayed on the public About page.
+                  </p>
+                </div>
+                <button onClick={() => handleOpenTeamModal()} className="btn btn-emerald btn-sm">
+                  <Plus size={16} /> <span>Add Team Member</span>
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '22px', marginBottom: '40px' }}>
+                {teamMembers.map((member) => (
+                  <div key={member.id} className="card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '12px', border: '1px solid rgba(20, 36, 56, 0.08)' }}>
+                    <div style={{ height: '220px', width: '100%', position: 'relative', backgroundColor: '#0f1e2f', overflow: 'hidden' }}>
+                      <img src={member.image_url || '/about/profile.png'} alt={member.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <div style={{ position: 'absolute', bottom: '10px', left: '10px' }}>
+                        <span className="badge badge-gold" style={{ fontSize: '0.72rem' }}>{member.role}</span>
+                      </div>
+                    </div>
+                    <div style={{ padding: '18px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      <h4 style={{ fontSize: '1.15rem', color: 'var(--color-forest)', marginBottom: '8px' }}>{member.name}</h4>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', lineHeight: 1.5, flex: 1, marginBottom: '16px' }}>{member.bio}</p>
+                      <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--color-border-light)', paddingTop: '12px' }}>
+                        <button onClick={() => handleOpenTeamModal(member)} className="btn btn-outline btn-sm" style={{ flex: 1 }}>
+                          <Pencil size={13} /> Edit
+                        </button>
+                        <button onClick={() => handleDeleteTeamMember(member)} className="btn btn-outline btn-sm" style={{ color: 'var(--color-danger)' }}>
+                          <Trash2 size={13} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* SECTION 2: GOOD COMPANY, MEANINGFUL LEARNING & JOYFUL GROWTH */}
+              <div className="card" style={{ marginBottom: '24px', padding: '22px 26px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', marginBottom: '4px' }}>Good company, meaningful learning, and joyful growth — Community Moments</h3>
+                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem' }}>
+                    Publish memorable leadership moments, stories, photos, and messages from the student community.
+                  </p>
+                </div>
+                <button onClick={() => handleOpenMomentModal()} className="btn btn-gold btn-sm">
+                  <Plus size={16} /> <span>Add Community Moment</span>
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '22px' }}>
+                {communityMoments.map((moment) => (
+                  <div key={moment.id} className="card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '12px', border: '1px solid rgba(20, 36, 56, 0.08)' }}>
+                    <div style={{ height: '180px', width: '100%', position: 'relative', overflow: 'hidden' }}>
+                      <img src={moment.image_url || '/about/group-photo.jpg'} alt={moment.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    </div>
+                    <div style={{ padding: '18px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      <h4 style={{ fontSize: '1.1rem', color: 'var(--color-forest)', marginBottom: '8px' }}>{moment.title}</h4>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', lineHeight: 1.5, flex: 1, marginBottom: '14px' }}>{moment.description}</p>
+                      {moment.author_quote && (
+                        <div style={{ padding: '10px 14px', backgroundColor: 'var(--color-success-soft)', borderRadius: '6px', fontSize: '0.82rem', fontStyle: 'italic', color: 'var(--color-forest)', marginBottom: '14px' }}>
+                          &ldquo;{moment.author_quote}&rdquo;
+                          {moment.author_name && <div style={{ fontStyle: 'normal', fontWeight: 600, marginTop: '2px', fontSize: '0.76rem' }}>— {moment.author_name}</div>}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--color-border-light)', paddingTop: '12px' }}>
+                        <button onClick={() => handleOpenMomentModal(moment)} className="btn btn-outline btn-sm" style={{ flex: 1 }}>
+                          <Pencil size={13} /> Edit
+                        </button>
+                        <button onClick={() => handleDeleteMoment(moment)} className="btn btn-outline btn-sm" style={{ color: 'var(--color-danger)' }}>
+                          <Trash2 size={13} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          
+          {/* 8. STICKY NOTES & QUOTES WALL CMS TAB */}
+          {activeTab === 'notes' && (
+            <div>
+              {/* HEADER BANNER */}
+              <div className="card" style={{ marginBottom: '24px', padding: '22px 26px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', marginBottom: '4px', color: 'var(--color-forest)' }}>
+                    Community Sticky Notes, Quotes &amp; Media Moderation
+                  </h3>
+                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem', margin: 0 }}>
+                    Review, approve, publish, edit, or delete leadership quotes, speeches, reflections, and media shared across Rwanda.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={fetchStickNotes} className="btn btn-outline btn-sm">
+                    <RefreshCw size={14} className={stickNotesLoading ? 'spin' : ''} />
+                    <span>Refresh Wall</span>
+                  </button>
+                  <button onClick={() => setShowAddStickNoteModal(true)} className="btn btn-emerald btn-sm">
+                    <Plus size={16} />
+                    <span>Add Note / Quote</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* FILTER PILLS */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
+                <button
+                  onClick={() => setStickNoteFilter('all')}
+                  className={`btn btn-sm ${stickNoteFilter === 'all' ? 'btn-primary' : 'btn-outline'}`}
+                >
+                  All Notes ({stickNotes.length})
+                </button>
+                <button
+                  onClick={() => setStickNoteFilter('published')}
+                  className={`btn btn-sm ${stickNoteFilter === 'published' ? 'btn-emerald' : 'btn-outline'}`}
+                >
+                  Published on Wall ({stickNotes.filter((n) => n.visibility === 'published').length})
+                </button>
+                <button
+                  onClick={() => setStickNoteFilter('pending')}
+                  className={`btn btn-sm ${stickNoteFilter === 'pending' ? 'btn-gold' : 'btn-outline'}`}
+                >
+                  Pending Review ({stickNotes.filter((n) => n.visibility === 'pending').length})
+                </button>
+                <button
+                  onClick={() => setStickNoteFilter('secret')}
+                  className={`btn btn-sm ${stickNoteFilter === 'secret' ? 'btn-primary' : 'btn-outline'}`}
+                >
+                  Private / Suspended ({stickNotes.filter((n) => n.visibility === 'secret').length})
+                </button>
+              </div>
+
+              {stickNotesLoading ? (
+                <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
+                  Loading community notes &amp; wall contributions…
+                </div>
+              ) : stickNotesError ? (
+                <div className="card" style={{ textAlign: 'center', padding: '30px', color: 'var(--color-danger)' }}>
+                  {stickNotesError}
+                </div>
+              ) : stickNotes.length === 0 ? (
+                <div className="card" style={{ textAlign: 'center', padding: '50px' }}>
+                  <Quote size={36} style={{ color: 'var(--color-gold)', margin: '0 auto 12px' }} />
+                  <h4>No notes found</h4>
+                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginBottom: '16px' }}>
+                    Click &ldquo;Add Note / Quote&rdquo; to share leadership thoughts, advice, or resources on the community board.
+                  </p>
+                  <button onClick={() => setShowAddStickNoteModal(true)} className="btn btn-emerald btn-sm">
+                    <Plus size={15} /> Add First Note
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '22px' }}>
+                  {stickNotes
+                    .filter((n) => stickNoteFilter === 'all' || n.visibility === stickNoteFilter)
+                    .map((note) => {
+                      const isPublished = note.visibility === 'published';
+                      const isPending = note.visibility === 'pending';
+                      return (
+                        <div
+                          key={note.id}
+                          className="card"
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            borderRadius: '12px',
+                            borderLeft: `4px solid ${isPublished ? 'var(--color-emerald)' : isPending ? 'var(--color-gold)' : 'var(--color-danger)'}`,
+                            backgroundColor: isPending ? '#FFFDF8' : '#FFFFFF',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <span className="badge badge-gold" style={{ textTransform: 'uppercase', fontSize: '0.7rem' }}>
+                              {note.note_kind}
+                            </span>
+                            <span
+                              className={`badge ${isPublished ? 'badge-emerald' : isPending ? 'badge-gold' : 'badge-forest'}`}
+                              style={{ fontSize: '0.72rem' }}
+                            >
+                              {note.visibility}
+                            </span>
+                          </div>
+
+                          <h4 style={{ fontSize: '1.1rem', color: 'var(--color-forest)', marginBottom: '8px' }}>
+                            {note.title}
+                          </h4>
+
+                          <p style={{ fontSize: '0.9rem', color: 'var(--color-text-main)', lineHeight: 1.6, flex: 1, whiteSpace: 'pre-wrap', marginBottom: '14px' }}>
+                            {note.body}
+                          </p>
+
+                          {note.media_type === 'image' && note.media_url && (
+                            <div style={{ marginBottom: '14px', borderRadius: '8px', overflow: 'hidden', maxHeight: '180px' }}>
+                              <img src={note.media_url} alt={note.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            </div>
+                          )}
+
+                          {note.media_type === 'video' && note.media_url && (
+                            <div style={{ marginBottom: '14px', fontSize: '0.82rem', padding: '8px 12px', background: '#F4F7F5', borderRadius: '6px' }}>
+                              <a href={note.media_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--color-forest)', fontWeight: 600 }}>
+                                <Video size={15} /> <span>Watch attached video</span> <ExternalLink size={12} />
+                              </a>
+                            </div>
+                          )}
+
+                          {note.media_type === 'pdf' && note.media_url && (
+                            <div style={{ marginBottom: '14px', fontSize: '0.82rem', padding: '8px 12px', background: '#F4F7F5', borderRadius: '6px' }}>
+                              <a href={note.media_url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--color-forest)', fontWeight: 600 }}>
+                                <FileText size={15} /> <span>Open shared PDF</span> <ExternalLink size={12} />
+                              </a>
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--color-text-subtle)', marginBottom: '14px', borderTop: '1px solid var(--color-border-light)', paddingTop: '10px' }}>
+                            <div>
+                              <strong>{note.full_name || 'Anonymous Leader'}</strong>
+                              {note.school_name && <span> • {note.school_name}</span>}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-gold)' }}>
+                              <Heart size={14} fill="currentColor" />
+                              <span>{note.like_count || 0}</span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '6px', borderTop: '1px solid var(--color-border-light)', paddingTop: '12px' }}>
+                            {isPublished ? (
+                              <button
+                                onClick={() => handleToggleStickNoteVisibility(note, 'secret')}
+                                className="btn btn-outline btn-sm"
+                                style={{ flex: 1, fontSize: '0.78rem' }}
+                              >
+                                Suspend / Hide
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleToggleStickNoteVisibility(note, 'published')}
+                                className="btn btn-emerald btn-sm"
+                                style={{ flex: 1, fontSize: '0.78rem' }}
+                              >
+                                Approve &amp; Publish
+                              </button>
+                            )}
+
+                            <button onClick={() => handleOpenEditStickNote(note)} className="btn btn-outline btn-sm" style={{ padding: '6px 10px' }}>
+                              <Pencil size={13} />
+                            </button>
+
+                            <button onClick={() => handleDeleteStickNote(note)} className="btn btn-outline btn-sm" style={{ padding: '6px 10px', color: 'var(--color-danger)' }}>
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
           )}
 
@@ -2390,6 +3360,535 @@ export default function AdminDashboardClient({
         </div>
       )}
 
+      {/* ADD STICKY NOTE MODAL */}
+      {showAddStickNoteModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.55)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div className="card" style={{ width: '100%', maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto', padding: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.25rem' }}>Share Note, Quote or Resource on Community Wall</h3>
+              <button onClick={() => setShowAddStickNoteModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleCreateStickNote}>
+              <div className="form-group">
+                <label className="form-label">Author / Attributed Name *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  value={newStickNoteInput.title}
+                  onChange={(e) => setNewStickNoteInput({ ...newStickNoteInput, title: e.target.value })}
+                  placeholder="e.g. Irakoze Sarah Divine or Youth Leader"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Quote / Message Text *</label>
+                <textarea
+                  rows={4}
+                  required
+                  className="form-textarea"
+                  value={newStickNoteInput.body}
+                  onChange={(e) => setNewStickNoteInput({ ...newStickNoteInput, body: e.target.value })}
+                  placeholder="Share inspiring leadership words, quotes, or practical reflections..."
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Kind</label>
+                  <select
+                    className="form-select"
+                    value={newStickNoteInput.noteKind}
+                    onChange={(e) => setNewStickNoteInput({ ...newStickNoteInput, noteKind: e.target.value })}
+                  >
+                    <option value="quote">Quote</option>
+                    <option value="reflection">Reflection</option>
+                    <option value="advice">Leadership Advice</option>
+                    <option value="idea">Idea</option>
+                    <option value="resource">Resource</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Media Type</label>
+                  <select
+                    className="form-select"
+                    value={newStickNoteInput.mediaType}
+                    onChange={(e) => setNewStickNoteInput({ ...newStickNoteInput, mediaType: e.target.value })}
+                  >
+                    <option value="none">None (Text Only)</option>
+                    <option value="image">Image Attachment</option>
+                    <option value="pdf">PDF Document Link</option>
+                    <option value="video">Video Link</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Media URL (Image, PDF, or Video Link)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={newStickNoteInput.mediaUrl}
+                  onChange={(e) => setNewStickNoteInput({ ...newStickNoteInput, mediaUrl: e.target.value })}
+                  placeholder="https://... or /about/photo.jpg or /resource.pdf"
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" onClick={() => setShowAddStickNoteModal(false)} className="btn btn-outline">Cancel</button>
+                <button type="submit" className="btn btn-emerald">Publish to Community Wall</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TEAM MEMBER MODAL */}
+      {showTeamModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.55)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div className="card" style={{ width: '100%', maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto', padding: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.25rem' }}>{editingTeamMember ? 'Edit Team Profile' : 'Add Team Member'}</h3>
+              <button onClick={() => setShowTeamModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleSaveTeamMember}>
+              <div className="form-group">
+                <label className="form-label">Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  value={teamForm.name}
+                  onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })}
+                  placeholder="e.g. Irakoze Sarah Divine"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Role / Job Title *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  value={teamForm.role}
+                  onChange={(e) => setTeamForm({ ...teamForm, role: e.target.value })}
+                  placeholder="e.g. Founder &amp; Executive Director"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Profile Image URL (Local or Remote)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={teamForm.imageUrl}
+                  onChange={(e) => setTeamForm({ ...teamForm, imageUrl: e.target.value })}
+                  placeholder="/about/sarah-image.jpg or https://..."
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Short Bio / Contribution *</label>
+                <textarea
+                  rows={3}
+                  required
+                  className="form-textarea"
+                  value={teamForm.bio}
+                  onChange={(e) => setTeamForm({ ...teamForm, bio: e.target.value })}
+                  placeholder="Describe their leadership impact, role, and focus area..."
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Display Sort Order</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={teamForm.sortOrder}
+                  onChange={(e) => setTeamForm({ ...teamForm, sortOrder: Number(e.target.value) })}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" onClick={() => setShowTeamModal(false)} className="btn btn-outline">Cancel</button>
+                <button type="submit" className="btn btn-emerald">{editingTeamMember ? 'Save Changes' : 'Create Profile'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* COMMUNITY MOMENT MODAL */}
+      {showMomentModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.55)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div className="card" style={{ width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto', padding: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.25rem' }}>{editingMoment ? 'Edit Community Moment' : 'Add Community Moment'}</h3>
+              <button onClick={() => setShowMomentModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleSaveMoment}>
+              <div className="form-group">
+                <label className="form-label">Moment Title *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  value={momentForm.title}
+                  onChange={(e) => setMomentForm({ ...momentForm, title: e.target.value })}
+                  placeholder="e.g. Good Company, Meaningful Learning &amp; Joyful Growth"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Moment Photo URL (Local or Remote)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={momentForm.imageUrl}
+                  onChange={(e) => setMomentForm({ ...momentForm, imageUrl: e.target.value })}
+                  placeholder="/about/group-photo.jpg or https://..."
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Description / Story *</label>
+                <textarea
+                  rows={3}
+                  required
+                  className="form-textarea"
+                  value={momentForm.description}
+                  onChange={(e) => setMomentForm({ ...momentForm, description: e.target.value })}
+                  placeholder="Share what made this gathering or conference moment memorable..."
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Community Message / Quote (optional)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={momentForm.authorQuote}
+                    onChange={(e) => setMomentForm({ ...momentForm, authorQuote: e.target.value })}
+                    placeholder="e.g. Strong teams grow through honest conversations."
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Attributed To</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={momentForm.authorName}
+                    onChange={(e) => setMomentForm({ ...momentForm, authorName: e.target.value })}
+                    placeholder="e.g. Sarah or Kigali Youth Delegate"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" onClick={() => setShowMomentModal(false)} className="btn btn-outline">Cancel</button>
+                <button type="submit" className="btn btn-emerald">{editingMoment ? 'Save Changes' : 'Publish Moment'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+
+      {/* COURSE CATEGORY MODAL */}
+      {showCategoryModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.55)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div className="card" style={{ width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto', padding: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.25rem' }}>{editingCategoryId ? 'Edit Leadership Course / Track' : 'Create New Leadership Course / Track'}</h3>
+              <button onClick={() => setShowCategoryModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleSaveCategory}>
+              <div className="form-group">
+                <label className="form-label">Course / Category Name *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  value={categoryForm.name}
+                  onChange={(e) => {
+                    const name = e.target.value;
+                    const autoSlug = editingCategoryId ? categoryForm.slug : name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                    setCategoryForm({ ...categoryForm, name, slug: autoSlug });
+                  }}
+                  placeholder="e.g. Ethical Leadership &amp; Governance"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">URL Slug *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  value={categoryForm.slug}
+                  onChange={(e) => setCategoryForm({ ...categoryForm, slug: e.target.value })}
+                  placeholder="e.g. ethical-leadership-governance"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Overview / Description</label>
+                <textarea
+                  rows={3}
+                  className="form-textarea"
+                  value={categoryForm.description}
+                  onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                  placeholder="Describe what young leaders will master in this course track..."
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Course Cover Image (URL or Upload)</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={categoryForm.coverImageUrl}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, coverImageUrl: e.target.value })}
+                    placeholder="/about/group-photo.jpg or https://..."
+                  />
+                  <label className="btn btn-outline btn-sm" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                    <FileUp size={15} />
+                    <span>Upload</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={(e) => handleFileUpload(e.target.files[0], (url) => setCategoryForm((prev) => ({ ...prev, coverImageUrl: url })))}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Video Introduction Link (Optional)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={categoryForm.videoUrl}
+                  onChange={(e) => setCategoryForm({ ...categoryForm, videoUrl: e.target.value })}
+                  placeholder="YouTube, Vimeo, or /meeting.mp4"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Icon Name</label>
+                  <select
+                    className="form-select"
+                    value={categoryForm.iconName}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, iconName: e.target.value })}
+                  >
+                    <option value="BookOpen">BookOpen (Standard)</option>
+                    <option value="Award">Award (Achievement)</option>
+                    <option value="Users">Users (Team &amp; People)</option>
+                    <option value="TrendingUp">TrendingUp (Growth)</option>
+                    <option value="ShieldCheck">ShieldCheck (Integrity)</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Publication Status</label>
+                  <select
+                    className="form-select"
+                    value={categoryForm.status}
+                    onChange={(e) => setCategoryForm({ ...categoryForm, status: e.target.value })}
+                  >
+                    <option value="published">Published</option>
+                    <option value="draft">Draft</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" onClick={() => setShowCategoryModal(false)} className="btn btn-outline">Cancel</button>
+                <button type="submit" className="btn btn-emerald">{editingCategoryId ? 'Save Changes' : 'Create Course'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT STICKY NOTE MODAL */}
+      {showEditStickNoteModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.55)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div className="card" style={{ width: '100%', maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto', padding: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.25rem' }}>Edit Sticky Note &amp; Contribution</h3>
+              <button onClick={() => setShowEditStickNoteModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleSaveEditStickNote}>
+              <div className="form-group">
+                <label className="form-label">Author / Attributed Name *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  value={stickNoteForm.title}
+                  onChange={(e) => setStickNoteForm({ ...stickNoteForm, title: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Quote / Message Text *</label>
+                <textarea
+                  rows={4}
+                  required
+                  className="form-textarea"
+                  value={stickNoteForm.body}
+                  onChange={(e) => setStickNoteForm({ ...stickNoteForm, body: e.target.value })}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Kind</label>
+                  <select
+                    className="form-select"
+                    value={stickNoteForm.noteKind}
+                    onChange={(e) => setStickNoteForm({ ...stickNoteForm, noteKind: e.target.value })}
+                  >
+                    <option value="quote">Quote</option>
+                    <option value="reflection">Reflection</option>
+                    <option value="advice">Leadership Advice</option>
+                    <option value="idea">Idea</option>
+                    <option value="speech">Speech Excerpt</option>
+                    <option value="resource">Resource</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Media Type</label>
+                  <select
+                    className="form-select"
+                    value={stickNoteForm.mediaType}
+                    onChange={(e) => setStickNoteForm({ ...stickNoteForm, mediaType: e.target.value })}
+                  >
+                    <option value="none">None (Text Only)</option>
+                    <option value="image">Image Attachment</option>
+                    <option value="pdf">PDF Document Link</option>
+                    <option value="video">Video Link</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Media URL (Image, PDF, or Video Link)</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={stickNoteForm.mediaUrl}
+                    onChange={(e) => setStickNoteForm({ ...stickNoteForm, mediaUrl: e.target.value })}
+                    placeholder="https://... or /uploads/..."
+                  />
+                  <label className="btn btn-outline btn-sm" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                    <FileUp size={15} />
+                    <span>Upload</span>
+                    <input
+                      type="file"
+                      style={{ display: 'none' }}
+                      onChange={(e) => handleFileUpload(e.target.files[0], (url) => setStickNoteForm((prev) => ({ ...prev, mediaUrl: url, mediaType: prev.mediaType === 'none' ? 'image' : prev.mediaType })))}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Wall Visibility</label>
+                <select
+                  className="form-select"
+                  value={stickNoteForm.visibility}
+                  onChange={(e) => setStickNoteForm({ ...stickNoteForm, visibility: e.target.value })}
+                >
+                  <option value="published">Published on Community Wall</option>
+                  <option value="pending">Pending Review</option>
+                  <option value="secret">Private / Hidden</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" onClick={() => setShowEditStickNoteModal(false)} className="btn btn-outline">Cancel</button>
+                <button type="submit" className="btn btn-emerald">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

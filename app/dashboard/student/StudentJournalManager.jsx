@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BookMarked, Plus, Trash2, Send, CheckCircle2, Clock } from 'lucide-react';
+import { BookMarked, Plus, Send, CheckCircle2, Clock, LockKeyhole, Sparkles } from 'lucide-react';
+
+const NOTE_SHAPES = ['journal-paper-square', 'journal-paper-fold', 'journal-paper-round', 'journal-paper-ticket'];
 
 export default function StudentJournalManager({ initialJournals = [] }) {
   const [journals, setJournals] = useState(initialJournals);
@@ -44,31 +46,36 @@ export default function StudentJournalManager({ initialJournals = [] }) {
   };
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+    <section className="journal-studio">
+      <div className="journal-studio-head">
         <div>
-          <h3 style={{ fontSize: '1.25rem', color: 'var(--color-forest)', marginBottom: '4px' }}>
-            Private Leadership Journal
+          <span className="badge badge-gold journal-private-badge"><LockKeyhole size={13} /> Only you can see these</span>
+          <h3>
+            Your reflection notes
           </h3>
           <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-            Document your inner growth, reflections on integrity, and weekly action commitments.
+            A quiet space to capture what you are learning. Your personal reflections are private and never appear on the public community wall.
           </p>
         </div>
 
         <button 
           onClick={() => setIsAdding(!isAdding)} 
-          className="btn btn-emerald btn-sm"
+          className="btn btn-emerald btn-sm journal-add-button"
         >
-          {isAdding ? 'Cancel' : <><Plus size={16} /> New Entry</>}
+          {isAdding ? 'Cancel' : <><Plus size={16} /> Add a note</>}
         </button>
       </div>
 
       {/* NEW ENTRY FORM */}
       {isAdding && (
-        <form onSubmit={handleCreate} className="card" style={{ marginBottom: '24px', backgroundColor: '#F9FCFA', border: '1.5px solid var(--color-emerald)' }}>
-          <h4 style={{ fontSize: '1.1rem', marginBottom: '14px', color: 'var(--color-forest)' }}>
-            Record a Personal Reflection
-          </h4>
+        <form onSubmit={handleCreate} className="card journal-compose">
+          <div className="journal-compose-title">
+            <span className="journal-compose-icon"><Sparkles size={18} /></span>
+            <div>
+              <h4>Pin down a thought</h4>
+              <p>This note is saved to your private journal.</p>
+            </div>
+          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
             <div className="form-group">
@@ -131,50 +138,54 @@ export default function StudentJournalManager({ initialJournals = [] }) {
 
       {/* ENTRIES LIST */}
       {journals.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '36px', backgroundColor: '#FAFBFA' }}>
-          <BookMarked size={36} style={{ color: 'var(--color-text-subtle)', marginBottom: '12px' }} />
-          <h4 style={{ fontSize: '1.05rem', marginBottom: '6px' }}>Your journal is currently empty</h4>
-          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
-            Reflections written after studying leadership lessons or attending summits will appear here.
-          </p>
+        <div className="journal-empty">
+          <BookMarked size={34} />
+          <h4>Your journal is ready for its first note</h4>
+          <p>Save a thought from a lesson, a moment you are proud of, or one small action you want to take.</p>
           <button onClick={() => setIsAdding(true)} className="btn btn-outline btn-sm">
-            Write First Reflection
+            Write a private reflection
           </button>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {journals.map((j) => (
-            <div key={j.id} className="card" style={{ borderLeft: '3px solid var(--color-emerald)', padding: '20px 24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                <h4 style={{ fontSize: '1.15rem', color: 'var(--color-forest)' }}>
-                  {j.title}
-                </h4>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', color: 'var(--color-text-subtle)' }}>
+        <div className="journal-note-wall">
+          {journals.map((j, index) => (
+            <article
+              key={j.id}
+              className={`journal-note ${NOTE_SHAPES[index % NOTE_SHAPES.length]}`}
+              style={{ '--note-delay': `${Math.min(index, 8) * 55}ms` }}
+            >
+              <div className="journal-note-topline">
+                <span className="journal-note-label"><LockKeyhole size={12} /> Private note</span>
+                <div className="journal-note-date">
                   <Clock size={13} />
                   <span>{new Date(j.created_at).toLocaleDateString()}</span>
                 </div>
               </div>
+              <h4>
+                  {j.title}
+              </h4>
 
               {j.lesson_reflected && (
-                <div style={{ fontSize: '0.82rem', color: 'var(--color-emerald)', fontWeight: 600, marginBottom: '10px' }}>
+                <div className="journal-note-lesson">
                   Lesson: {j.lesson_reflected}
                 </div>
               )}
 
-              <p style={{ fontSize: '0.92rem', color: 'var(--color-text-main)', lineHeight: 1.6, marginBottom: '14px', whiteSpace: 'pre-line' }}>
+              <p className="journal-note-body">
                 {j.reflection_content}
               </p>
 
               {j.action_commitment && (
-                <div style={{ backgroundColor: 'var(--color-gold-soft)', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: '0.82rem', color: 'var(--color-forest-dark)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <CheckCircle2 size={16} style={{ color: 'var(--color-gold-hover)' }} />
+                <div className="journal-note-commitment">
+                  <CheckCircle2 size={16} />
                   <span><strong>Commitment:</strong> {j.action_commitment}</span>
                 </div>
               )}
-            </div>
+              <span className="journal-note-tape" aria-hidden="true" />
+            </article>
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }

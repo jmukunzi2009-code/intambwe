@@ -17,7 +17,7 @@ export async function GET(request, { params }) {
     // Fetch all registered participants and their current attendance status
     const res = await query(
       `SELECT er.id as registration_id, er.registered_at,
-              u.id as user_id, u.full_name, u.email,
+              u.id as user_id, u.full_name, u.email, u.role, u.is_active,
               sp.school_name, sp.class_level, sp.phone,
               ar.status as attendance_status, ar.marked_at, ar.notes as attendance_notes
        FROM event_registrations er

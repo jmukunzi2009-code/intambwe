@@ -51,32 +51,49 @@ export async function POST(request) {
     }
 
     const body = await request.json();
+    if (!body.meetingNumber) {
+      body.meetingNumber = `INT-CONF-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`;
+    }
+    if (!body.theme) {
+      body.theme = body.title ? `Theme: ${body.title}` : 'Youth Leadership and Empowerment';
+    }
+    if (!body.description) {
+      body.description = 'INTAMBWE Youth Leadership Conference: bringing students and educators together for collaborative dialogue, ethics, and service.';
+    }
+    if (!body.venue) {
+      body.venue = 'Kigali, Rwanda';
+    }
+    if (!body.eventDate) {
+      body.eventDate = new Date().toISOString().slice(0, 10);
+    }
+
     const validatedData = meetingSchema.parse(body);
 
     const res = await query(
       `INSERT INTO meetings (
         meeting_number, title, theme, description, event_date,
         start_time, end_time, venue, capacity, status,
-        summary, outcomes, recommendations, cover_image_url, video_url, created_by
+        summary, outcomes, recommendations, cover_image_url, video_url, gallery_urls, created_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17)
       RETURNING *`,
       [
-        validatedData.meetingNumber,
+        validatedData.meetingNumber || `INT-CONF-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`,
         validatedData.title,
-        validatedData.theme,
-        validatedData.description,
-        validatedData.eventDate,
-        validatedData.startTime || null,
-        validatedData.endTime || null,
-        validatedData.venue,
-        validatedData.capacity || 100,
-        validatedData.status || 'draft',
+        validatedData.theme || 'Youth Leadership',
+        validatedData.description || 'Leadership conference',
+        validatedData.eventDate || new Date().toISOString().slice(0, 10),
+        validatedData.startTime || '09:00',
+        validatedData.endTime || '16:00',
+        validatedData.venue || 'Kigali, Rwanda',
+        validatedData.capacity || 200,
+        validatedData.status || 'published',
         validatedData.summary || null,
         validatedData.outcomes || null,
         validatedData.recommendations || null,
         validatedData.coverImageUrl || null,
         validatedData.videoUrl || null,
+        JSON.stringify(validatedData.galleryUrls || []),
         user.id,
       ]
     );

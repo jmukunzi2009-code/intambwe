@@ -130,3 +130,42 @@ export async function PATCH(request) {
     return NextResponse.json({ error: 'Failed to update user.' }, { status: 500 });
   }
 }
+
+export async function DELETE(request) {
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== ROLES.SUPER_ADMIN) {
+      return NextResponse.json({ error: 'Only the Super Admin can delete an account.' }, { status: 403 });
+    }
+
+    const { targetUserId } = await request.json();
+    if (!targetUserId) {
+      return NextResponse.json({ error: 'Choose an account to delete.' }, { status: 400 });
+    }
+    if (Number(targetUserId) === Number(user.id)) {
+      return NextResponse.json({ error: 'You cannot delete the account you are using.' }, { status: 400 });
+    }
+
+    const target = await query('SELECT id, email, role, full_name FROM users WHERE id = $1', [targetUserId]);
+    if (target.rows.length === 0) {
+      return NextResponse.json({ error: 'Account not found.' }, { status: 404 });
+    }
+    if (target.rows[0].role === ROLES.SUPER_ADMIN) {
+      return NextResponse.json({ error: 'A Super Admin account cannot be deleted here.' }, { status: 403 });
+    }
+
+    await query('DELETE FROM users WHERE id = $1', [targetUserId]);
+    await logAudit({
+      userId: user.id,
+      action: 'USER_DELETED',
+      entityType: 'users',
+      entityId: targetUserId,
+      details: { email: target.rows[0].email, role: target.rows[0].role, fullName: target.rows[0].full_name },
+    });
+
+    return NextResponse.json({ success: true, message: `${target.rows[0].full_name} was removed.` });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    return NextResponse.json({ error: 'Failed to delete the account.' }, { status: 500 });
+  }
+}
