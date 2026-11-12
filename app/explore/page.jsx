@@ -4,7 +4,15 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { getCurrentUser } from '@/lib/auth';
 import { query } from '@/lib/db';
-import { ArrowRight, BookOpen, Clock, Search, Video } from 'lucide-react';
+import { ArrowRight, Award, BookOpen, Clock, Search, ShieldCheck, TrendingUp, Users, Video } from 'lucide-react';
+
+const COURSE_ICONS = {
+  Award,
+  BookOpen,
+  ShieldCheck,
+  TrendingUp,
+  Users,
+};
 
 export const metadata = {
   title: 'Leadership Courses | INTAMBWE Curriculum',
@@ -100,13 +108,14 @@ export default async function ExplorePage({ searchParams }) {
                   const progress = course.lesson_count
                     ? Math.round((Number(course.completed_lessons) / Number(course.lesson_count)) * 100)
                     : 0;
+                  const CourseIcon = COURSE_ICONS[course.icon_name] || BookOpen;
                   return (
                     <article key={course.id} className="course-catalog-card">
                       <Link href={`/courses/${course.id}`} className="course-catalog-cover-link" aria-label={`Explore ${course.name}`}>
                         {course.cover_image_url ? (
                           <img src={course.cover_image_url} alt="" className="course-catalog-cover" />
                         ) : (
-                          <div className="course-catalog-cover course-catalog-cover-empty"><BookOpen size={36} /></div>
+                          <div className="course-catalog-cover course-catalog-cover-empty"><CourseIcon size={38} strokeWidth={1.6} /></div>
                         )}
                         {course.video_url && <span className="course-catalog-video"><Video size={14} /> Video course</span>}
                       </Link>

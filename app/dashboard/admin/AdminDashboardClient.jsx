@@ -1030,7 +1030,7 @@ export default function AdminDashboardClient({
           </div>
         </div>
 
-        <nav style={{ padding: '16px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <nav className="dashboard-sidebar-nav" style={{ padding: '16px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <button 
             onClick={() => setActiveTab('overview')}
             style={{
@@ -3698,26 +3698,43 @@ export default function AdminDashboardClient({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Course Cover Image (URL or Upload)</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <label className="form-label">Course Card Image</label>
+                <p className="course-image-help">Choose a unique image for this course. Students will see it on the Learn page.</p>
+                <div className="course-image-controls">
                   <input
                     type="text"
                     className="form-input"
                     value={categoryForm.coverImageUrl}
                     onChange={(e) => setCategoryForm({ ...categoryForm, coverImageUrl: e.target.value })}
-                    placeholder="/about/group-photo.jpg or https://..."
+                    placeholder="Paste an image URL or upload a different image"
                   />
-                  <label className="btn btn-outline btn-sm" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                  <label className="btn btn-outline btn-sm course-image-upload">
                     <FileUp size={15} />
-                    <span>Upload</span>
+                    <span>Choose image</span>
                     <input
                       type="file"
                       accept="image/*"
                       style={{ display: 'none' }}
-                      onChange={(e) => handleFileUpload(e.target.files[0], (url) => setCategoryForm((prev) => ({ ...prev, coverImageUrl: url })))}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = '';
+                        handleFileUpload(file, (url) => setCategoryForm((prev) => ({ ...prev, coverImageUrl: url })));
+                      }}
                     />
                   </label>
                 </div>
+                {categoryForm.coverImageUrl && (
+                  <div className="course-image-preview">
+                    <img src={categoryForm.coverImageUrl} alt="Course card image preview" />
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      onClick={() => setCategoryForm((prev) => ({ ...prev, coverImageUrl: '' }))}
+                    >
+                      Remove image
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="form-group">
