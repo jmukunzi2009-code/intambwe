@@ -34,7 +34,9 @@ import {
   Quote,
   Sparkles,
   Heart,
-  FileText
+  FileText,
+  HelpCircle,
+  Upload
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -50,6 +52,8 @@ import {
   Legend 
 } from 'recharts';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
+import { ThemeModeButton } from '@/components/ThemeProvider';
+import { StickTonePicker } from '@/components/StickTonePicker';
 
 const CHART_COLORS = ['#123B2A', '#167A50', '#D4A72C', '#3B82F6', '#8B5CF6'];
 
@@ -99,9 +103,13 @@ export default function AdminDashboardClient({
   schools,
   initialTeam = [],
   initialMoments = [],
-  initialNotes = []
+  initialNotes = [],
+  initialLeaders = [],
+  initialFounderImage = '/about/sarah-image.jpg'
 }) {
   const [activeTab, setActiveTab] = useState('overview');
+  const [founderImageUrl, setFounderImageUrl] = useState(initialFounderImage || '/about/sarah-image.jpg');
+  const [savingFounderImage, setSavingFounderImage] = useState(false);
   const [users, setUsers] = useState(initialUsers);
   const [meetings, setMeetings] = useState(initialMeetings);
   const [articles, setArticles] = useState(initialArticles);
@@ -123,12 +131,28 @@ export default function AdminDashboardClient({
   const [stickNotesLoading, setStickNotesLoading] = useState(false);
   const [stickNotesError, setStickNotesError] = useState('');
   const [stickNoteFilter, setStickNoteFilter] = useState('all');
+  const [leaderHighlights, setLeaderHighlights] = useState(initialLeaders || []);
+  const [showLeaderModal, setShowLeaderModal] = useState(false);
+  const [editingLeader, setEditingLeader] = useState(null);
+  const [leaderForm, setLeaderForm] = useState({
+    name: '',
+    title: '',
+    quote: '',
+    highlight: '',
+    imageUrl: '/about/profile.png',
+    videoUrl: '',
+    category: 'Youth Leadership',
+    badge: 'Featured Leader',
+    sortOrder: 0,
+  });
+  const [notesSubTab, setNotesSubTab] = useState('notes');
   const [showEditStickNoteModal, setShowEditStickNoteModal] = useState(false);
   const [editingStickNote, setEditingStickNote] = useState(null);
   const [stickNoteForm, setStickNoteForm] = useState({
     title: '',
     body: '',
     noteKind: 'quote',
+    tone: 'tone-gold',
     mediaUrl: '',
     mediaType: 'none',
     visibility: 'published',
@@ -159,6 +183,7 @@ export default function AdminDashboardClient({
     title: '',
     body: '',
     noteKind: 'quote',
+    tone: 'tone-gold',
     mediaUrl: '',
     mediaType: 'none',
     visibility: 'published',
@@ -204,6 +229,7 @@ export default function AdminDashboardClient({
 
   // Resources Modal state
   const [showResourceModal, setShowResourceModal] = useState(false);
+  const [editingResourceId, setEditingResourceId] = useState(null);
   const [newResource, setNewResource] = useState({
     title: '',
     description: '',
@@ -212,6 +238,16 @@ export default function AdminDashboardClient({
     fileSizeMb: 1.5,
     categoryId: resourceCategories[0]?.id || '',
     isPublic: true,
+  });
+
+  // User Management Edit Modal state
+  const [editingUser, setEditingUser] = useState(null);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [userForm, setUserForm] = useState({
+    fullName: '',
+    email: '',
+    role: 'student',
+    isActive: true,
   });
 
   // Selected message for details modal
@@ -248,6 +284,10 @@ export default function AdminDashboardClient({
     coverImageUrl: '',
     videoUrl: '',
     status: 'published',
+    quizQuestion: '',
+    quizOptions: ['', '', '', ''],
+    quizCorrectIndex: 0,
+    quizExplanation: '',
   });
 
   const years = [...new Set(meetings.map((meeting) => String(meeting.event_date).slice(0, 4)))].sort((a, b) => b.localeCompare(a));
@@ -402,22 +442,45 @@ export default function AdminDashboardClient({
     }
   };
 
-  // Create Resource
+  // Edit Resource
+  const handleEditResource = (resource) => {
+    setEditingResourceId(resource.id);
+    setNewResource({
+      title: resource.title || '',
+      description: resource.description || '',
+      fileType: resource.file_type || 'pdf',
+      fileUrl: resource.file_url || '',
+      fileSizeMb: resource.file_size_mb || 1.5,
+      categoryId: resource.category_id || (resourceCategories[0]?.id || 1),
+      isPublic: resource.is_public !== false,
+    });
+    setShowResourceModal(true);
+  };
+
+  // Create or Update Resource
   const handleCreateResource = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/resources', {
-        method: 'POST',
+      const url = editingResourceId ? `/api/resources?id=${editingResourceId}` : '/api/resources';
+      const method = editingResourceId ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newResource),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create resource');
+      if (!res.ok) throw new Error(data.error || 'Failed to save resource');
 
       const categoryName = resourceCategories.find((category) => category.id === Number(newResource.categoryId))?.name;
-      setResources((current) => [{ ...data.resource, category_name: categoryName }, ...current]);
+      if (editingResourceId) {
+        setResources((current) => current.map((r) => r.id === editingResourceId ? { ...r, ...data.resource, category_name: categoryName } : r));
+        alert('Resource updated successfully!');
+      } else {
+        setResources((current) => [{ ...data.resource, category_name: categoryName }, ...current]);
+        alert('Resource added successfully!');
+      }
       setShowResourceModal(false);
-      alert('Resource added successfully!');
+      setEditingResourceId(null);
     } catch (err) {
       alert(err.message);
     }
@@ -450,6 +513,73 @@ export default function AdminDashboardClient({
       }
     } catch (err) {
       alert('Failed to update resource status');
+    }
+  };
+
+  // --- USER MANAGEMENT HANDLERS ---
+  const handleOpenUserEdit = (u) => {
+    setEditingUser(u);
+    setUserForm({
+      fullName: u.full_name || '',
+      email: u.email || '',
+      role: u.role || 'student',
+      isActive: Boolean(u.is_active),
+    });
+    setShowUserModal(true);
+  };
+
+  const handleSaveUser = async (e) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: editingUser.id,
+          fullName: userForm.fullName,
+          email: userForm.email,
+          role: userForm.role,
+          isActive: userForm.isActive,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update user');
+
+      setUsers((prev) => prev.map((u) => u.id === editingUser.id ? {
+        ...u,
+        full_name: userForm.fullName,
+        email: userForm.email,
+        role: userForm.role,
+        is_active: userForm.isActive,
+      } : u));
+      setShowUserModal(false);
+      setEditingUser(null);
+      alert('User account updated successfully!');
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteUser = async (u) => {
+    if (u.role === 'super_admin') {
+      alert('Super Admin accounts cannot be deleted.');
+      return;
+    }
+    if (!confirm(`Are you sure you want to permanently delete user account "${u.full_name}" (${u.email})? This action cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/users?id=${u.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: u.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete user');
+
+      setUsers((prev) => prev.filter((item) => item.id !== u.id));
+      alert(data.message || 'User deleted successfully.');
+    } catch (err) {
+      alert(err.message);
     }
   };
 
@@ -592,6 +722,10 @@ export default function AdminDashboardClient({
       coverImageUrl: article.cover_image_url || '',
       videoUrl: article.video_url || '',
       status: article.status,
+      quizQuestion: article.quiz_question || '',
+      quizOptions: Array.isArray(article.quiz_options) ? article.quiz_options : (article.quiz_options ? JSON.parse(article.quiz_options) : ['', '', '', '']),
+      quizCorrectIndex: Number.isInteger(Number(article.quiz_correct_index)) ? Number(article.quiz_correct_index) : 0,
+      quizExplanation: article.quiz_explanation || '',
     });
     setShowArticleModal(true);
   };
@@ -644,6 +778,25 @@ export default function AdminDashboardClient({
     }
   };
 
+  
+  const handleSaveFounderImage = async (url) => {
+    setSavingFounderImage(true);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'founder_image_url', value: url, description: 'Founder Portrait Image' }),
+      });
+      if (!res.ok) throw new Error('Failed to update founder photo.');
+      setFounderImageUrl(url);
+      alert('Founder image updated successfully!');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSavingFounderImage(false);
+    }
+  };
+
   // --- STICK NOTES HANDLERS ---
   const fetchStickNotes = async () => {
     setStickNotesLoading(true);
@@ -677,6 +830,7 @@ export default function AdminDashboardClient({
         title: '',
         body: '',
         noteKind: 'quote',
+        tone: 'tone-gold',
         mediaUrl: '',
         mediaType: 'none',
         visibility: 'published',
@@ -693,6 +847,7 @@ export default function AdminDashboardClient({
       title: note.title || '',
       body: note.body || '',
       noteKind: note.note_kind || 'quote',
+      tone: note.tone || 'tone-gold',
       mediaUrl: note.media_url || '',
       mediaType: note.media_type || 'none',
       visibility: note.visibility || 'published',
@@ -749,6 +904,78 @@ export default function AdminDashboardClient({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update visibility');
       setStickNotes((prev) => prev.map((n) => (n.id === note.id ? { ...n, visibility: newVisibility } : n)));
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // --- LEADER HIGHLIGHTS HANDLERS ---
+  const handleOpenLeaderModal = (leader = null) => {
+    if (leader) {
+      setEditingLeader(leader);
+      setLeaderForm({
+        name: leader.name || '',
+        title: leader.title || '',
+        quote: leader.quote || '',
+        highlight: leader.highlight || '',
+        imageUrl: leader.image_url || '/about/profile.png',
+        videoUrl: leader.video_url || '',
+        category: leader.category || 'Youth Leadership',
+        badge: leader.badge || 'Featured Leader',
+        sortOrder: leader.sort_order || 0,
+      });
+    } else {
+      setEditingLeader(null);
+      setLeaderForm({
+        name: '',
+        title: '',
+        quote: '',
+        highlight: '',
+        imageUrl: '/about/profile.png',
+        videoUrl: '',
+        category: 'Youth Leadership',
+        badge: 'Featured Leader',
+        sortOrder: leaderHighlights.length + 1,
+      });
+    }
+    setShowLeaderModal(true);
+  };
+
+  const handleSaveLeader = async (e) => {
+    e.preventDefault();
+    try {
+      const url = editingLeader ? `/api/leaders/${editingLeader.id}` : '/api/leaders';
+      const method = editingLeader ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(leaderForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save leader highlight');
+
+      if (editingLeader) {
+        setLeaderHighlights((prev) => prev.map((l) => (l.id === editingLeader.id ? data.leader : l)));
+        alert('Leader highlight updated!');
+      } else {
+        setLeaderHighlights((prev) => [...prev.filter((l) => l.id !== data.leader.id), data.leader]);
+        alert('Leader highlight added!');
+      }
+      setShowLeaderModal(false);
+      setEditingLeader(null);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteLeader = async (leader) => {
+    if (!confirm(`Delete leader highlight for "${leader.name}"?`)) return;
+    try {
+      const res = await fetch(`/api/leaders/${leader.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete leader highlight');
+      setLeaderHighlights((prev) => prev.filter((l) => l.id !== leader.id));
+      alert('Leader highlight deleted.');
     } catch (err) {
       alert(err.message);
     }
@@ -1338,6 +1565,7 @@ export default function AdminDashboardClient({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <ThemeModeButton />
             {activeTab === 'notes' && (
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={fetchStickNotes} className="btn btn-outline btn-sm">
@@ -1635,15 +1863,35 @@ export default function AdminDashboardClient({
                           {formatDate(u.created_at)}
                         </td>
                         <td>
-                          {u.role !== 'super_admin' && (
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                             <button
-                              onClick={() => handleToggleUserActive(u.id, u.is_active)}
-                              className={`btn btn-sm ${u.is_active ? 'btn-outline' : 'btn-emerald'}`}
-                              style={{ padding: '4px 10px', fontSize: '0.75rem' }}
+                              onClick={() => handleOpenUserEdit(u)}
+                              className="btn btn-sm btn-outline"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              title="Edit user details and role"
                             >
-                              {u.is_active ? 'Suspend' : 'Activate'}
+                              <Pencil size={12} /> Edit
                             </button>
-                          )}
+                            {u.role !== 'super_admin' && (
+                              <button
+                                onClick={() => handleToggleUserActive(u.id, u.is_active)}
+                                className={`btn btn-sm ${u.is_active ? 'btn-outline' : 'btn-emerald'}`}
+                                style={{ padding: '4px 8px', fontSize: '0.75rem' }}
+                              >
+                                {u.is_active ? 'Suspend' : 'Activate'}
+                              </button>
+                            )}
+                            {u.role !== 'super_admin' && (
+                              <button
+                                onClick={() => handleDeleteUser(u)}
+                                className="btn btn-sm btn-outline"
+                                style={{ padding: '4px 8px', fontSize: '0.75rem', color: 'var(--color-danger)' }}
+                                title="Delete user account"
+                              >
+                                <Trash2 size={12} /> Delete
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -2414,10 +2662,18 @@ export default function AdminDashboardClient({
                           </span>
                         </td>
                         <td>
-                          <div style={{ display: 'flex', gap: '6px' }}>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                             <a href={res.file_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-sm" style={{ padding: '4px 8px', fontSize: '0.75rem' }}>
                               Open
                             </a>
+                            <button 
+                              onClick={() => handleEditResource(res)}
+                              className="btn btn-sm btn-outline"
+                              style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              title="Edit resource details"
+                            >
+                              <Pencil size={12} /> Edit
+                            </button>
                             <button 
                               onClick={() => handleToggleResourceStatus(res.id, res.status || 'active')}
                               className="btn btn-sm btn-outline"
@@ -2507,6 +2763,61 @@ export default function AdminDashboardClient({
           {/* ABOUT US & TEAM PROFILES TAB */}
           {activeTab === 'about_cms' && (
             <div>
+              
+              {/* SECTION 0: FOUNDER PORTRAIT & BIOGRAPHY */}
+              <div className="card" style={{ marginBottom: '24px', padding: '24px', borderLeft: '4px solid var(--color-gold)', backgroundColor: '#FFFFFF' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
+                  <div>
+                    <span className="badge badge-gold" style={{ marginBottom: '6px' }}>Organization Leadership</span>
+                    <h3 style={{ fontSize: '1.25rem', color: 'var(--color-forest)', margin: 0 }}>
+                      Founder &amp; Executive Director Portrait (Irakoze Sarah Divine)
+                    </h3>
+                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.86rem', marginTop: '4px' }}>
+                      Change the hero founder photo displayed on the public About page (/about) through upload or URL.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' }}>
+                  <div style={{ position: 'relative', width: '110px', height: '110px', borderRadius: '50%', overflow: 'hidden', border: '3px solid var(--color-gold)', flexShrink: 0, backgroundColor: '#0f1e2f' }}>
+                    <img src={founderImageUrl} alt="Founder preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: '260px' }}>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '10px' }}>
+                      <label className="btn btn-emerald btn-sm" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                        <Upload size={14} />
+                        <span>Upload New Founder Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file, (url) => handleSaveFounderImage(url));
+                          }}
+                        />
+                      </label>
+                      <button
+                        onClick={() => {
+                          const url = prompt('Enter new Founder photo URL or path:', founderImageUrl);
+                          if (url && url.trim()) handleSaveFounderImage(url.trim());
+                        }}
+                        className="btn btn-outline btn-sm"
+                      >
+                        Enter URL / Path
+                      </button>
+                      <a href="/about" target="_blank" rel="noreferrer" className="btn btn-outline btn-sm">
+                        View on /about →
+                      </a>
+                    </div>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--color-text-subtle)' }}>
+                      Current path: <code>{founderImageUrl}</code> {savingFounderImage && '— Saving…'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* SECTION 1: THE PEOPLE BEHIND EACH STEP */}
               <div className="card" style={{ marginBottom: '24px', padding: '22px 26px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -2592,6 +2903,90 @@ export default function AdminDashboardClient({
           {/* 8. STICKY NOTES & QUOTES WALL CMS TAB */}
           {activeTab === 'notes' && (
             <div>
+              {/* SUB-TABS: COMMUNITY STICKY NOTES VS FEATURED LEADER HIGHLIGHTS */}
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '22px' }}>
+                <button
+                  type="button"
+                  onClick={() => setNotesSubTab('notes')}
+                  className={`btn ${notesSubTab === 'notes' ? 'btn-emerald' : 'btn-outline'}`}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <Quote size={16} />
+                  <span>Community Sticky Notes ({stickNotes.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNotesSubTab('leaders')}
+                  className={`btn ${notesSubTab === 'leaders' ? 'btn-gold' : 'btn-outline'}`}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <Sparkles size={16} />
+                  <span>Featured Leader Highlights &amp; Quotes ({leaderHighlights.length})</span>
+                </button>
+              </div>
+
+              {notesSubTab === 'leaders' ? (
+                /* LEADER HIGHLIGHTS SECTION */
+                <div>
+                  <div className="card" style={{ marginBottom: '24px', padding: '22px 26px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.25rem', marginBottom: '4px', color: 'var(--color-forest)' }}>
+                        Featured Transformational Leaders &amp; Wisdom Highlights
+                      </h3>
+                      <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem', margin: 0 }}>
+                        Manage the inspiring leaders, quotes, and milestone highlights shown on the public Community page.
+                      </p>
+                    </div>
+                    <button onClick={() => handleOpenLeaderModal()} className="btn btn-gold btn-sm">
+                      <Plus size={16} /> <span>Add Leader Highlight</span>
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '22px' }}>
+                    {leaderHighlights.map((leader, index) => (
+                      <div key={`${leader.id}-${index}`} className="card" style={{ display: 'flex', flexDirection: 'column', borderRadius: '14px', border: '1px solid rgba(20, 36, 56, 0.08)', padding: '22px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
+                          <span className="badge badge-gold" style={{ fontSize: '0.72rem' }}>{leader.badge || 'Featured Leader'}</span>
+                          <span style={{ fontSize: '0.74rem', color: 'var(--color-text-subtle)' }}>Order: {leader.sort_order}</span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+                          <div style={{ width: '52px', height: '52px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '2px solid var(--color-gold)' }}>
+                            <img src={leader.image_url || '/about/profile.png'} alt={leader.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                          <div>
+                            <h4 style={{ fontSize: '1.1rem', color: 'var(--color-forest)', margin: 0 }}>{leader.name}</h4>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--color-emerald)', fontWeight: 600 }}>{leader.title}</div>
+                          </div>
+                        </div>
+
+                        <div style={{ paddingLeft: '12px', borderLeft: '3px solid var(--color-gold)', marginBottom: '14px', flex: 1 }}>
+                          <p style={{ fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--color-forest)', margin: 0, lineHeight: 1.5 }}>
+                            &ldquo;{leader.quote}&rdquo;
+                          </p>
+                        </div>
+
+                        {leader.highlight && (
+                          <div style={{ padding: '10px 12px', backgroundColor: '#F4F8F6', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--color-text-main)', marginBottom: '14px' }}>
+                            <strong>Impact:</strong> {leader.highlight}
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--color-border-light)', paddingTop: '12px', marginTop: 'auto' }}>
+                          <button onClick={() => handleOpenLeaderModal(leader)} className="btn btn-outline btn-sm" style={{ flex: 1 }}>
+                            <Pencil size={13} /> Edit
+                          </button>
+                          <button onClick={() => handleDeleteLeader(leader)} className="btn btn-outline btn-sm" style={{ color: 'var(--color-danger)' }}>
+                            <Trash2 size={13} /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                /* STICKY NOTES SECTION */
+                <div>
               {/* HEADER BANNER */}
               <div className="card" style={{ marginBottom: '24px', padding: '22px 26px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
@@ -2646,9 +3041,17 @@ export default function AdminDashboardClient({
                 <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
                   Loading community notes &amp; wall contributions…
                 </div>
-              ) : stickNotesError ? (
-                <div className="card" style={{ textAlign: 'center', padding: '30px', color: 'var(--color-danger)' }}>
-                  {stickNotesError}
+              ) : stickNotesError && stickNotes.length === 0 ? (
+                <div className="card" style={{ textAlign: 'center', padding: '30px' }}>
+                  <p style={{ color: 'var(--color-danger)', marginBottom: '14px' }}>{stickNotesError}</p>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                    <button onClick={fetchStickNotes} className="btn btn-outline btn-sm">
+                      <RefreshCw size={14} /> Retry Loading Notes
+                    </button>
+                    <button onClick={() => setShowAddStickNoteModal(true)} className="btn btn-emerald btn-sm">
+                      <Plus size={14} /> Add New Note
+                    </button>
+                  </div>
                 </div>
               ) : stickNotes.length === 0 ? (
                 <div className="card" style={{ textAlign: 'center', padding: '50px' }}>
@@ -2763,6 +3166,8 @@ export default function AdminDashboardClient({
                         </div>
                       );
                     })}
+                </div>
+              )}
                 </div>
               )}
             </div>
@@ -2909,7 +3314,7 @@ export default function AdminDashboardClient({
         </div>
       )}
 
-      {/* ADD RESOURCE MODAL */}
+      {/* ADD / EDIT RESOURCE MODAL */}
       {showResourceModal && (
         <div style={{
           position: 'fixed',
@@ -2926,8 +3331,8 @@ export default function AdminDashboardClient({
         }}>
           <div className="card" style={{ width: '100%', maxWidth: '550px', padding: '32px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '1.25rem' }}>Add Educational Resource / Download</h3>
-              <button onClick={() => setShowResourceModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+              <h3 style={{ fontSize: '1.25rem' }}>{editingResourceId ? 'Edit Educational Resource' : 'Add Educational Resource / Download'}</h3>
+              <button onClick={() => { setShowResourceModal(false); setEditingResourceId(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
             </div>
 
             <form onSubmit={handleCreateResource}>
@@ -3011,8 +3416,96 @@ export default function AdminDashboardClient({
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
-                <button type="button" onClick={() => setShowResourceModal(false)} className="btn btn-outline">Cancel</button>
-                <button type="submit" className="btn btn-emerald">Publish Resource</button>
+                <button type="button" onClick={() => { setShowResourceModal(false); setEditingResourceId(null); }} className="btn btn-outline">Cancel</button>
+                <button type="submit" className="btn btn-emerald">{editingResourceId ? 'Save Changes' : 'Publish Resource'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT USER ACCOUNT MODAL */}
+      {showUserModal && editingUser && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div className="card" style={{ width: '100%', maxWidth: '520px', padding: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <span className="badge badge-emerald" style={{ marginBottom: '4px' }}>User Account</span>
+                <h3 style={{ fontSize: '1.25rem', margin: 0 }}>Edit User: {editingUser.full_name}</h3>
+              </div>
+              <button onClick={() => { setShowUserModal(false); setEditingUser(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleSaveUser}>
+              <div className="form-group">
+                <label className="form-label">Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  value={userForm.fullName}
+                  onChange={(e) => setUserForm({ ...userForm, fullName: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Email Address *</label>
+                <input
+                  type="email"
+                  required
+                  className="form-input"
+                  value={userForm.email}
+                  onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Role</label>
+                  <select
+                    className="form-select"
+                    value={userForm.role}
+                    disabled={editingUser.role === 'super_admin'}
+                    onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                  >
+                    <option value="student">Student</option>
+                    <option value="mentor">Mentor</option>
+                    <option value="event_manager">Event Manager</option>
+                    <option value="content_editor">Content Editor</option>
+                    <option value="admin">Administrator</option>
+                    {editingUser.role === 'super_admin' && <option value="super_admin">Super Admin</option>}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Account Status</label>
+                  <select
+                    className="form-select"
+                    value={userForm.isActive ? 'active' : 'suspended'}
+                    disabled={editingUser.role === 'super_admin'}
+                    onChange={(e) => setUserForm({ ...userForm, isActive: e.target.value === 'active' })}
+                  >
+                    <option value="active">Active</option>
+                    <option value="suspended">Suspended</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" onClick={() => { setShowUserModal(false); setEditingUser(null); }} className="btn btn-outline">Cancel</button>
+                <button type="submit" className="btn btn-emerald">Save User Account</button>
               </div>
             </form>
           </div>
@@ -3102,6 +3595,11 @@ export default function AdminDashboardClient({
                 </div>
               </div>
 
+              <StickTonePicker
+                value={newStickNoteInput.tone}
+                onChange={(tone) => setNewStickNoteInput((previous) => ({ ...previous, tone }))}
+              />
+
               <div className="form-group">
                 <label className="form-label">Summit Title</label>
                 <input type="text" required className="form-input" value={newMeeting.title} onChange={(e) => setNewMeeting({ ...newMeeting, title: e.target.value })} placeholder="e.g. Annual Rwanda Youth Leadership Summit" />
@@ -3187,6 +3685,38 @@ export default function AdminDashboardClient({
             </div>
 
             <form onSubmit={handleCreateArticle}>
+
+              {/* LIVE COURSE LESSONS CONTEXT BOX */}
+              {(() => {
+                const catLessons = articles.filter((a) => Number(a.category_id) === Number(newArticle.categoryId));
+                const catObj = categories.find((c) => Number(c.id) === Number(newArticle.categoryId));
+                return (
+                  <div style={{ backgroundColor: '#F8FAF9', padding: '14px 16px', borderRadius: '8px', border: '1px solid var(--color-border-light)', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <strong style={{ fontSize: '0.86rem', color: 'var(--color-forest)' }}>
+                        Course: {catObj?.name || 'Selected Track'} ({catLessons.length} {catLessons.length === 1 ? 'lesson' : 'lessons'} published)
+                      </strong>
+                      <span className="badge badge-gold" style={{ fontSize: '0.72rem' }}>
+                        {editingArticleId ? 'Editing Lesson' : `Adding Step #${catLessons.length + 1}`}
+                      </span>
+                    </div>
+                    {catLessons.length === 0 ? (
+                      <p style={{ fontSize: '0.8rem', color: 'var(--color-text-subtle)', margin: 0 }}>
+                        No lessons in this course yet. This article will be the first step for students.
+                      </p>
+                    ) : (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        {catLessons.map((l, i) => (
+                          <span key={l.id} style={{ fontSize: '0.76rem', backgroundColor: '#FFFFFF', padding: '3px 8px', borderRadius: '4px', border: '1px solid #dbe2de', color: 'var(--color-text-main)' }}>
+                            {i + 1}. {l.title.slice(0, 32)}…
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px' }}>
                 <div className="form-group">
                   <label className="form-label">Article Title</label>
@@ -3290,9 +3820,81 @@ export default function AdminDashboardClient({
                 </div>
               </div>
 
+              <StickTonePicker
+                value={stickNoteForm.tone}
+                onChange={(tone) => setStickNoteForm((previous) => ({ ...previous, tone }))}
+              />
+
               <div className="form-group">
                 <label className="form-label">Reading time (minutes)</label>
                 <input type="number" min="1" className="form-input" value={newArticle.readingTimeMinutes} onChange={(e) => setNewArticle({ ...newArticle, readingTimeMinutes: Number(e.target.value) })} />
+              </div>
+
+              {/* LESSON COMPLETION TEST / KNOWLEDGE CHECK BUILDER */}
+              <div style={{ backgroundColor: '#F8FAF9', padding: '20px', borderRadius: '12px', border: '1px solid var(--color-border-light)', marginTop: '20px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                  <HelpCircle size={18} style={{ color: 'var(--color-emerald)' }} />
+                  <h4 style={{ fontSize: '1.05rem', color: 'var(--color-forest)', margin: 0 }}>
+                    Lesson Completion Test &amp; Comprehension Check (Step Test)
+                  </h4>
+                </div>
+                <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
+                  Students must answer this test question correctly to mark this lesson complete, record progression, and unlock course certificates.
+                </p>
+
+                <div className="form-group" style={{ marginBottom: '14px' }}>
+                  <label className="form-label">Test Question *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={newArticle.quizQuestion || ''}
+                    onChange={(e) => setNewArticle({ ...newArticle, quizQuestion: e.target.value })}
+                    placeholder="e.g. What is the fundamental foundation of self-leadership taught in this lesson?"
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
+                  <label className="form-label" style={{ marginBottom: '2px' }}>
+                    4 Multiple Choice Options (Select radio for the Correct Answer) *
+                  </label>
+                  {[0, 1, 2, 3].map((optIdx) => (
+                    <div key={optIdx} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: Number(newArticle.quizCorrectIndex) === optIdx ? 'var(--color-emerald)' : 'var(--color-text-subtle)' }}>
+                        <input
+                          type="radio"
+                          name="quizCorrectIndex"
+                          checked={Number(newArticle.quizCorrectIndex) === optIdx}
+                          onChange={() => setNewArticle({ ...newArticle, quizCorrectIndex: optIdx })}
+                          style={{ width: '18px', height: '18px', accentColor: 'var(--color-emerald)', cursor: 'pointer' }}
+                        />
+                        Option {String.fromCharCode(65 + optIdx)}
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={newArticle.quizOptions?.[optIdx] || ''}
+                        onChange={(e) => {
+                          const nextOpts = [...(newArticle.quizOptions || ['', '', '', ''])];
+                          nextOpts[optIdx] = e.target.value;
+                          setNewArticle({ ...newArticle, quizOptions: nextOpts });
+                        }}
+                        placeholder={`Answer text for Option ${String.fromCharCode(65 + optIdx)}${Number(newArticle.quizCorrectIndex) === optIdx ? ' (Marked as Correct Answer)' : ''}`}
+                        style={{ flex: 1, fontSize: '0.88rem' }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Key Takeaway / Explanation shown upon completion</label>
+                  <textarea
+                    rows={2}
+                    className="form-textarea"
+                    value={newArticle.quizExplanation || ''}
+                    onChange={(e) => setNewArticle({ ...newArticle, quizExplanation: e.target.value })}
+                    placeholder="Brief explanation confirming the core insight and encouraging the student..."
+                  />
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
@@ -3446,6 +4048,30 @@ export default function AdminDashboardClient({
                   onChange={(e) => setNewStickNoteInput({ ...newStickNoteInput, mediaUrl: e.target.value })}
                   placeholder="https://... or /about/photo.jpg or /resource.pdf"
                 />
+
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px' }}>
+                  <label className="btn btn-outline btn-sm" style={{ cursor: 'pointer', padding: '3px 8px', fontSize: '0.74rem' }}>
+                    <Upload size={12} /> Upload File (Image / PDF)
+                    <input
+                      type="file"
+                      accept="image/*,.pdf,video/mp4"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const isPdf = file.name.toLowerCase().endsWith('.pdf');
+                          const isVid = file.name.toLowerCase().endsWith('.mp4');
+                          handleFileUpload(file, (url) => setNewStickNoteInput((prev) => ({
+                            ...prev,
+                            mediaUrl: url,
+                            mediaType: isPdf ? 'pdf' : isVid ? 'video' : 'image'
+                          })));
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
@@ -3901,6 +4527,148 @@ export default function AdminDashboardClient({
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
                 <button type="button" onClick={() => setShowEditStickNoteModal(false)} className="btn btn-outline">Cancel</button>
                 <button type="submit" className="btn btn-emerald">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* LEADER HIGHLIGHT MODAL */}
+      {showLeaderModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.55)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div className="card" style={{ width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto', padding: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.25rem' }}>{editingLeader ? 'Edit Leader Highlight' : 'Add Transformational Leader Highlight'}</h3>
+              <button onClick={() => setShowLeaderModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleSaveLeader}>
+              <div className="form-group">
+                <label className="form-label">Leader Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  value={leaderForm.name}
+                  onChange={(e) => setLeaderForm({ ...leaderForm, name: e.target.value })}
+                  placeholder="e.g. Paul Kagame or Irakoze Sarah Divine"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Official Title / Organization / Role *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-input"
+                  value={leaderForm.title}
+                  onChange={(e) => setLeaderForm({ ...leaderForm, title: e.target.value })}
+                  placeholder="e.g. President of Rwanda or Youth Council Representative"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Inspiring Leadership Quote *</label>
+                <textarea
+                  rows={3}
+                  required
+                  className="form-textarea"
+                  value={leaderForm.quote}
+                  onChange={(e) => setLeaderForm({ ...leaderForm, quote: e.target.value })}
+                  placeholder="Share their transformational words of wisdom..."
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Key Leadership Impact / Highlight Summary</label>
+                <textarea
+                  rows={2}
+                  className="form-textarea"
+                  value={leaderForm.highlight}
+                  onChange={(e) => setLeaderForm({ ...leaderForm, highlight: e.target.value })}
+                  placeholder="Summarize their key achievements or community impact..."
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Leader Photo URL (or Upload)</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={leaderForm.imageUrl}
+                    onChange={(e) => setLeaderForm({ ...leaderForm, imageUrl: e.target.value })}
+                    placeholder="/about/sarah-image.jpg or https://..."
+                  />
+                  <label className="btn btn-outline btn-sm" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                    <FileUp size={15} />
+                    <span>Upload</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={(e) => handleFileUpload(e.target.files[0], (url) => setLeaderForm((prev) => ({ ...prev, imageUrl: url })))}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Highlight Badge</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={leaderForm.badge}
+                    onChange={(e) => setLeaderForm({ ...leaderForm, badge: e.target.value })}
+                    placeholder="e.g. National Visionary"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Category</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={leaderForm.category}
+                    onChange={(e) => setLeaderForm({ ...leaderForm, category: e.target.value })}
+                    placeholder="e.g. Vision & Governance"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginTop: '14px' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Video size={16} style={{ color: 'var(--color-emerald)' }} />
+                  <span>Leader Keynote / Speech Video URL (Optional YouTube or Embed Link)</span>
+                </label>
+                <input
+                  type="url"
+                  className="form-input"
+                  value={leaderForm.videoUrl || ''}
+                  onChange={(e) => setLeaderForm({ ...leaderForm, videoUrl: e.target.value })}
+                  placeholder="https://www.youtube.com/embed/qp0HIF3SfI4"
+                />
+                <span style={{ fontSize: '0.78rem', color: 'var(--color-text-subtle)', marginTop: '4px', display: 'block' }}>
+                  If provided, an interactive video player will appear on this leader&apos;s card on the community wisdom wall.
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" onClick={() => setShowLeaderModal(false)} className="btn btn-outline">Cancel</button>
+                <button type="submit" className="btn btn-gold">{editingLeader ? 'Save Changes' : 'Publish Leader Highlight'}</button>
               </div>
             </form>
           </div>

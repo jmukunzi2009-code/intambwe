@@ -7,6 +7,7 @@ export const runtime = 'nodejs';
 
 const KINDS = ['reflection', 'quote', 'speech', 'resource'];
 const VISIBILITY = ['pending', 'published', 'secret'];
+const ALLOWED_TONES = ['tone-gold', 'tone-green', 'tone-rose', 'tone-blue', 'tone-peach', 'tone-lavender', 'tone-ivory', 'tone-ink'];
 
 function cleanMedia(url) {
   const value = String(url || '').trim();
@@ -72,7 +73,10 @@ export async function GET(request) {
     }
 
     const result = await query(
-      `SELECT n.*, u.full_name, u.role, sp.school_name,
+      `SELECT n.*,
+              COALESCE(NULLIF(n.author_name, ''), u.full_name, 'Community Leader') AS full_name,
+              u.role,
+              COALESCE(NULLIF(n.school_name, ''), sp.school_name, 'INTAMBWE Community') AS school_name,
               COUNT(DISTINCT likes.user_id)::int AS like_count,
               COALESCE(BOOL_OR(my_like.user_id IS NOT NULL), false) AS liked_by_me
        FROM stick_notes n
@@ -97,13 +101,6 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Sign in to share a stick note.' }, { status: 401 });
-    }
-    if (!user.is_active) {
-      return NextResponse.json({ error: 'This account is suspended.' }, { status: 403 });
-    }
-
     let body;
     try {
       body = await request.json();
@@ -114,30 +111,62 @@ export async function POST(request) {
     const input = validNoteInput(body);
     if (input.error) return NextResponse.json({ error: input.error }, { status: 400 });
 
-    const staff = isStaffRole(user.role);
-    const visibility = staff && VISIBILITY.includes(body.visibility) ? body.visibility : 'pending';
+    let effectiveUserId = 1;
+    let authorName = input.title;
+    let authorRole = 'community';
+    let schoolName = 'INTAMBWE Community';
+    let staff = false;
+
+    if (user) {
+      if (!user.is_active) {
+        return NextResponse.json({ error: 'This account is suspended.' }, { status: 403 });
+      }
+      effectiveUserId = user.id;
+      authorName = user.full_name;
+      authorRole = user.role;
+      schoolName = user.school_name || 'INTAMBWE Community';
+      staff = isStaffRole(user.role);
+    } else {
+      if (body.authorName && String(body.authorName).trim()) {
+        authorName = String(body.authorName).trim();
+      }
+      if (body.schoolName && String(body.schoolName).trim()) {
+        schoolName = String(body.schoolName).trim();
+      }
+    }
+
+    // Allow notes to be published to the public wall immediately by default
+    let visibility = 'published';
+    if (body.visibility && VISIBILITY.includes(body.visibility)) {
+      visibility = body.visibility;
+    }
+
+    const reviewedBy = staff ? effectiveUserId : null;
+    const reviewedAt = visibility === 'pending' ? null : new Date();
+
+    const tone = ALLOWED_TONES.includes(body.tone) ? body.tone : 'tone-gold';
 
     const result = await query(
-      `INSERT INTO stick_notes (user_id, title, body, note_kind, media_url, media_type, visibility, reviewed_by, reviewed_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CASE WHEN $7 = 'pending' THEN NULL ELSE NOW() END)
+      `INSERT INTO stick_notes (user_id, title, body, note_kind, media_url, media_type, visibility, author_name, school_name, reviewed_by, reviewed_at, tone)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
-      [user.id, input.title, input.text, input.noteKind, input.mediaUrl, input.mediaType, visibility, staff && visibility !== 'pending' ? user.id : null]
+      [effectiveUserId, input.title, input.text, input.noteKind, input.mediaUrl, input.mediaType, visibility, authorName, schoolName, reviewedBy, reviewedAt, tone]
     );
 
-    await logAudit({
-      userId: user.id,
-      action: 'STICK_NOTE_CREATED',
-      entityType: 'stick_notes',
-      entityId: result.rows[0].id,
-      details: { title: input.title, visibility, noteKind: input.noteKind },
-    });
+    if (user) {
+      await logAudit({
+        userId: user.id,
+        action: 'STICK_NOTE_CREATED',
+        entityType: 'stick_notes',
+        entityId: result.rows[0].id,
+        details: { title: input.title, visibility, noteKind: input.noteKind },
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      note: { ...result.rows[0], full_name: user.full_name, role: user.role, school_name: user.school_name || null },
-      message: visibility === 'published'
-        ? 'Your contribution is now on the community wall.'
-        : 'Your contribution was saved and is waiting for staff review.',
+      note: { ...result.rows[0], full_name: authorName, role: authorRole, school_name: schoolName, like_count: 0, liked_by_me: false },
+      message: 'Your quote / note is now live on the public community wall!',
     }, { status: 201 });
   } catch (error) {
     console.error('Stick note create error:', error);
@@ -162,8 +191,12 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'Choose a valid contribution.' }, { status: 400 });
     }
     const staff = isStaffRole(user.role);
+    const hasContent = ['title', 'body', 'noteKind', 'mediaUrl', 'mediaType', 'tone'].some((key) => Object.hasOwn(body, key));
 
-    if (VISIBILITY.includes(body.visibility)) {
+    if (!hasContent && Object.hasOwn(body, 'visibility')) {
+      if (!VISIBILITY.includes(body.visibility)) {
+        return NextResponse.json({ error: 'Invalid contribution visibility.' }, { status: 400 });
+      }
       if (!staff) {
         return NextResponse.json({ error: 'Only staff can change contribution visibility.' }, { status: 403 });
       }
@@ -192,17 +225,22 @@ export async function PATCH(request) {
 
     const input = validNoteInput(body);
     if (input.error) return NextResponse.json({ error: input.error }, { status: 400 });
+    const tone = body.tone === undefined ? null : ALLOWED_TONES.includes(body.tone) ? body.tone : 'tone-gold';
+    if (staff && body.visibility !== undefined && !VISIBILITY.includes(body.visibility)) {
+      return NextResponse.json({ error: 'Invalid contribution visibility.' }, { status: 400 });
+    }
+    const requestedVisibility = staff && VISIBILITY.includes(body.visibility) ? body.visibility : null;
 
     const result = await query(
       `UPDATE stick_notes
-       SET title = $3, body = $4, note_kind = $5, media_url = $6, media_type = $7,
-           visibility = CASE WHEN $8 THEN visibility ELSE 'pending' END,
-           reviewed_by = CASE WHEN $8 THEN reviewed_by ELSE NULL END,
-           reviewed_at = CASE WHEN $8 THEN reviewed_at ELSE NULL END
-       WHERE id = $1 AND (user_id = $2 OR $8)
+       SET title = $3, body = $4, note_kind = $5, media_url = $6, media_type = $7, tone = COALESCE($8, tone),
+           visibility = CASE WHEN $9 THEN COALESCE($10, visibility) ELSE 'pending' END,
+           reviewed_by = CASE WHEN $9 THEN CASE WHEN $10 IS NULL THEN reviewed_by ELSE $2 END ELSE NULL END,
+           reviewed_at = CASE WHEN $9 THEN CASE WHEN $10 IS NULL THEN reviewed_at ELSE NOW() END ELSE NULL END
+       WHERE id = $1 AND (user_id = $2 OR $9)
          AND note_kind <> 'reflection'
        RETURNING *`,
-      [noteId, user.id, input.title, input.text, input.noteKind, input.mediaUrl, input.mediaType, staff]
+      [noteId, user.id, input.title, input.text, input.noteKind, input.mediaUrl, input.mediaType, tone, staff, requestedVisibility]
     );
     if (result.rows.length === 0) {
       return NextResponse.json({ error: 'Contribution not found or you do not have permission to edit it.' }, { status: 404 });
@@ -213,7 +251,7 @@ export async function PATCH(request) {
       action: 'STICK_NOTE_UPDATED',
       entityType: 'stick_notes',
       entityId: noteId,
-      details: { title: input.title, noteKind: input.noteKind },
+      details: { title: input.title, noteKind: input.noteKind, tone: result.rows[0].tone, visibility: result.rows[0].visibility },
     });
 
     return NextResponse.json({

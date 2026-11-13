@@ -9,9 +9,6 @@ export const runtime = 'nodejs';
 export async function POST(request) {
   try {
     const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Please sign in to upload files.' }, { status: 401 });
-    }
 
     const contentType = request.headers.get('content-type') || '';
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
@@ -28,6 +25,13 @@ export async function POST(request) {
         return NextResponse.json({ error: 'No valid file was uploaded.' }, { status: 400 });
       }
 
+      const originalName = file.name || 'upload.bin';
+      const ext = path.extname(originalName).toLowerCase() || '.png';
+      const safeExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.pdf', '.mp4'];
+      if (!safeExtensions.includes(ext)) {
+        return NextResponse.json({ error: 'Unsupported file type. Please upload an image, PDF, or video.' }, { status: 400 });
+      }
+
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
@@ -36,8 +40,6 @@ export async function POST(request) {
         return NextResponse.json({ error: 'File size exceeds 25MB limit.' }, { status: 400 });
       }
 
-      const originalName = file.name || 'upload.bin';
-      const ext = path.extname(originalName).toLowerCase() || '.png';
       const safeBase = path.basename(originalName, ext).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
       const filename = `${Date.now()}-${safeBase}${ext}`;
       const filePath = path.join(uploadsDir, filename);

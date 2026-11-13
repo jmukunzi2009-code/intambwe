@@ -78,7 +78,7 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'Unauthorized to modify users.' }, { status: 403 });
     }
 
-    const { targetUserId, isActive, role } = await request.json();
+    const { targetUserId, isActive, role, fullName, email } = await request.json();
 
     if (!targetUserId) {
       return NextResponse.json({ error: 'Target user ID is required.' }, { status: 400 });
@@ -102,7 +102,18 @@ export async function PATCH(request) {
       updates.push(`is_active = $${params.length}`);
     }
 
-    if (role && user.role === ROLES.SUPER_ADMIN) {
+    if (fullName && typeof fullName === 'string' && fullName.trim()) {
+      params.push(fullName.trim());
+      updates.push(`full_name = $${params.length}`);
+    }
+
+    if (email && typeof email === 'string' && email.trim()) {
+      const cleanEmail = email.toLowerCase().trim();
+      params.push(cleanEmail);
+      updates.push(`email = $${params.length}`);
+    }
+
+    if (role && (user.role === ROLES.SUPER_ADMIN || (user.role === ROLES.ADMIN && role !== ROLES.SUPER_ADMIN))) {
       params.push(role);
       updates.push(`role = $${params.length}`);
     }
@@ -121,7 +132,7 @@ export async function PATCH(request) {
       action: 'USER_UPDATED',
       entityType: 'users',
       entityId: targetUserId,
-      details: { isActive, role },
+      details: { isActive, role, fullName, email },
     });
 
     return NextResponse.json({ success: true, message: 'User updated successfully.' });
@@ -134,16 +145,23 @@ export async function PATCH(request) {
 export async function DELETE(request) {
   try {
     const user = await getCurrentUser();
-    if (!user || user.role !== ROLES.SUPER_ADMIN) {
-      return NextResponse.json({ error: 'Only the Super Admin can delete an account.' }, { status: 403 });
+    if (!user || (user.role !== ROLES.SUPER_ADMIN && user.role !== ROLES.ADMIN)) {
+      return NextResponse.json({ error: 'Unauthorized to delete user accounts.' }, { status: 403 });
     }
 
-    const { targetUserId } = await request.json();
+    let targetUserId = new URL(request.url).searchParams.get('id');
+    if (!targetUserId) {
+      try {
+        const body = await request.json();
+        targetUserId = body.targetUserId;
+      } catch {}
+    }
+
     if (!targetUserId) {
       return NextResponse.json({ error: 'Choose an account to delete.' }, { status: 400 });
     }
     if (Number(targetUserId) === Number(user.id)) {
-      return NextResponse.json({ error: 'You cannot delete the account you are using.' }, { status: 400 });
+      return NextResponse.json({ error: 'You cannot delete the account you are currently using.' }, { status: 400 });
     }
 
     const target = await query('SELECT id, email, role, full_name FROM users WHERE id = $1', [targetUserId]);
@@ -151,7 +169,10 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'Account not found.' }, { status: 404 });
     }
     if (target.rows[0].role === ROLES.SUPER_ADMIN) {
-      return NextResponse.json({ error: 'A Super Admin account cannot be deleted here.' }, { status: 403 });
+      return NextResponse.json({ error: 'A Super Admin account cannot be deleted.' }, { status: 403 });
+    }
+    if (user.role !== ROLES.SUPER_ADMIN && target.rows[0].role === ROLES.ADMIN) {
+      return NextResponse.json({ error: 'Only a Super Admin can delete an administrator account.' }, { status: 403 });
     }
 
     await query('DELETE FROM users WHERE id = $1', [targetUserId]);
@@ -163,7 +184,7 @@ export async function DELETE(request) {
       details: { email: target.rows[0].email, role: target.rows[0].role, fullName: target.rows[0].full_name },
     });
 
-    return NextResponse.json({ success: true, message: `${target.rows[0].full_name} was removed.` });
+    return NextResponse.json({ success: true, message: `Account for ${target.rows[0].full_name} was removed.` });
   } catch (error) {
     console.error('Delete user error:', error);
     return NextResponse.json({ error: 'Failed to delete the account.' }, { status: 500 });

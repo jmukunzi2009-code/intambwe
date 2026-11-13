@@ -115,6 +115,18 @@ export default async function ConferenceDetailPage({ params }) {
     [id]
   );
 
+  // Fetch other upcoming / recent conferences
+  const otherConferencesRes = await query(
+    `SELECT id, meeting_number, title, theme, event_date, venue, status
+     FROM meetings
+     WHERE id != $1
+     ORDER BY event_date DESC
+     LIMIT 5`,
+    [id]
+  );
+
+
+
   return (
     <div className={styles.conferencePage}>
       <Navbar currentUser={currentUser} />
@@ -403,7 +415,7 @@ export default async function ConferenceDetailPage({ params }) {
             </div>
 
             {/* RIGHT SIDEBAR: REGISTRATION & PARTNER SCHOOLS */}
-            <div className={styles.detailColumn} style={{ gap: '24px' }}>
+            <div className={`${styles.detailColumn} ${styles.sidebarSticky}`} style={{ gap: '24px' }}>
               
               {/* REGISTRATION ACTION CARD */}
               <div className="card" style={{ borderTop: '4px solid var(--color-gold)' }}>
@@ -460,6 +472,53 @@ export default async function ConferenceDetailPage({ params }) {
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+                            {/* OTHER CONFERENCES & SUMMITS QUICK SWITCHER */}
+              {otherConferencesRes.rows.length > 0 && (
+                <div className="card" style={{ borderLeft: '4px solid var(--color-emerald)', backgroundColor: '#FFFFFF' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                    <h4 style={{ fontSize: '1.05rem', color: 'var(--color-forest)', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                      <Calendar size={18} style={{ color: 'var(--color-emerald)' }} />
+                      <span>Other Summits</span>
+                    </h4>
+                    <Link href="/conferences" style={{ fontSize: '0.78rem', color: 'var(--color-emerald)', fontWeight: 600 }}>
+                      All ({otherConferencesRes.rows.length + 1}) →
+                    </Link>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {otherConferencesRes.rows.map((other) => (
+                      <Link
+                        key={other.id}
+                        href={`/conferences/${other.id}`}
+                        className="card card-interactive"
+                        style={{
+                          padding: '10px 12px',
+                          backgroundColor: '#F8FAF9',
+                          borderRadius: '8px',
+                          border: '1px solid var(--color-border-light)',
+                          textDecoration: 'none',
+                          display: 'block'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <span className="badge badge-emerald" style={{ fontSize: '0.68rem', padding: '1px 6px' }}>
+                            #{other.meeting_number}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--color-text-subtle)' }}>
+                            {new Date(other.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-forest)', lineHeight: 1.3, marginBottom: '2px' }}>
+                          {other.title}
+                        </div>
+                        <div style={{ fontSize: '0.76rem', color: 'var(--color-text-muted)' }}>
+                          📍 {other.venue}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               )}
 

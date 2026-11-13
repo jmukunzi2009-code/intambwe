@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { getCurrentUser } from '@/lib/auth';
 import { query } from '@/lib/db';
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Clock, Lock, Play, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Award, BookOpen, CheckCircle2, Clock, Lock, Play, Sparkles } from 'lucide-react';
 import StartCourseButton from './StartCourseButton';
 import styles from './course.module.css';
 
@@ -65,21 +65,24 @@ export default async function CourseDetailPage({ params }) {
     [id]
   );
 
-  let enrolled = false;
+    let enrolled = false;
   let completedIds = new Set();
+  let courseCert = null;
   if (currentUser?.role === 'student') {
-    const [enrollmentResult, completedResult] = await Promise.all([
+    const [enrollmentResult, completedResult, certResult] = await Promise.all([
       query('SELECT id FROM course_enrollments WHERE user_id = $1 AND category_id = $2', [currentUser.id, id]),
       query(
         `SELECT p.article_id
          FROM student_learning_progress p
-         JOIN articles a ON a.id = p.article_id AND a.category_id = $2 AND a.status = 'published'
+         JOIN articles a ON a.category_id = $2 AND a.status = 'published'
          WHERE p.user_id = $1`,
         [currentUser.id, id]
       ),
+      query('SELECT * FROM certificates WHERE user_id = $1 AND category_id = $2', [currentUser.id, id]),
     ]);
     enrolled = enrollmentResult.rows.length > 0;
     completedIds = new Set(completedResult.rows.map((row) => Number(row.article_id)));
+    if (certResult.rows.length > 0) courseCert = certResult.rows[0];
   }
 
   const lessonCount = lessonsResult.rows.length;
@@ -118,6 +121,31 @@ export default async function CourseDetailPage({ params }) {
         <div className={`container ${styles.content}`}>
           <div className={styles.courseLayout}>
             <section className={styles.lessonSection}>
+              {canStudy && completedCount > 0 && completedCount >= lessonCount && lessonCount > 0 && (
+                <div style={{ backgroundColor: 'var(--color-forest)', color: 'white', padding: '24px 28px', borderRadius: '14px', marginBottom: '28px', borderLeft: '4px solid var(--color-gold)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-gold)', fontWeight: 700, fontSize: '0.85rem', marginBottom: '4px' }}>
+                      <Award size={18} />
+                      <span>COURSE COMPLETED · 100% MASTERY</span>
+                    </div>
+                    <h3 style={{ color: 'white', fontSize: '1.3rem', margin: 0 }}>
+                      Congratulations! You have completed all lessons in this course.
+                    </h3>
+                    <p style={{ color: '#d1dbd5', fontSize: '0.9rem', margin: '4px 0 0 0' }}>
+                      Your leadership certificate has been unlocked and verified.
+                    </p>
+                  </div>
+                  <Link 
+                    href={courseCert ? `/certificates/${courseCert.certificate_code}` : '/dashboard/student'}
+                    className="btn btn-gold btn-lg"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Award size={18} />
+                    <span>Download Official Certificate</span>
+                  </Link>
+                </div>
+              )}
+
               <div className={styles.sectionHeading}>
                 <div>
                   <span className="badge badge-emerald">Learn step by step</span>

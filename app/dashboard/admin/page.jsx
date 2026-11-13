@@ -41,6 +41,8 @@ export default async function AdminDashboardPage() {
     teamRes,
     momentsRes,
     notesRes,
+    leadersRes,
+    settingsRes,
   ] = await Promise.all([
     query(`
       SELECT u.id, u.full_name, u.email, u.role, u.is_active, u.created_at,
@@ -98,6 +100,7 @@ export default async function AdminDashboardPage() {
     query('SELECT COUNT(*) FROM event_registrations'),
     query('SELECT * FROM team_members ORDER BY sort_order ASC, id ASC'),
     query('SELECT * FROM community_moments ORDER BY sort_order ASC, id ASC'),
+    query('SELECT * FROM leader_highlights ORDER BY sort_order ASC, id ASC'),
     query(`
       SELECT n.*, u.full_name, u.role, sp.school_name,
              COUNT(DISTINCT likes.user_id)::int AS like_count,
@@ -111,6 +114,7 @@ export default async function AdminDashboardPage() {
       ORDER BY n.created_at DESC
       LIMIT 120
     `, [currentUser?.id || null]),
+    query("SELECT setting_key, setting_value FROM website_settings WHERE setting_key = 'founder_image_url'"),
   ]);
 
   const metrics = {
@@ -136,6 +140,8 @@ export default async function AdminDashboardPage() {
       initialTeam={teamRes.rows}
       initialMoments={momentsRes.rows}
       initialNotes={notesRes.rows}
+      initialLeaders={leadersRes.rows}
+      initialFounderImage={settingsRes.rows[0]?.setting_value || '/about/sarah-image.jpg'}
     />
   );
 }

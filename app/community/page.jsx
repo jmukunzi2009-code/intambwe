@@ -4,15 +4,18 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { getCurrentUser } from '@/lib/auth';
 import { query } from '@/lib/db';
+import { isStaffRole } from '@/lib/permissions';
 import { 
   Users, 
+  Quote, 
   Award, 
   MessageSquare, 
   ShieldCheck, 
   Calendar, 
   ArrowRight,
   HeartHandshake,
-  Sparkles
+  Sparkles,
+  Video
 } from 'lucide-react';
 import CommunityTopicCreator from './CommunityTopicCreator';
 import StickBoard from '@/components/StickBoard';
@@ -50,9 +53,15 @@ export default async function CommunityPage() {
      ORDER BY dt.is_pinned DESC, dt.created_at DESC
      LIMIT 5`
   );
+  const leadersRes = await query(
+    `SELECT * FROM leader_highlights WHERE is_active = TRUE ORDER BY sort_order ASC, id ASC`
+  );
+
   const notesRes = await query(
-     `SELECT n.id, n.title, n.body, n.note_kind, n.media_url, n.media_type, n.created_at,
-             u.full_name, sp.school_name, COUNT(DISTINCT likes.user_id)::int AS like_count,
+     `SELECT n.id, n.title, n.body, n.note_kind, n.tone, n.media_url, n.media_type, n.created_at, n.user_id,
+             COALESCE(NULLIF(n.author_name, ''), u.full_name, 'Community Leader') AS full_name,
+             COALESCE(NULLIF(n.school_name, ''), sp.school_name, 'INTAMBWE Community') AS school_name,
+             COUNT(DISTINCT likes.user_id)::int AS like_count,
              COALESCE(BOOL_OR(my_like.user_id IS NOT NULL), false) AS liked_by_me
       FROM stick_notes n
       JOIN users u ON u.id = n.user_id
@@ -95,10 +104,120 @@ export default async function CommunityPage() {
         </div>
 
         <div className="container" style={{ marginTop: '40px' }}>
+          {/* VOICES OF IMPACT: TRANSFORMATIONAL LEADERS & WISDOM HIGHLIGHTS */}
+          <section style={{ marginBottom: '50px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', marginBottom: '26px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <span className="badge badge-gold">Leadership Wisdom</span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--color-emerald)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    Voices of Impact
+                  </span>
+                </div>
+                <h2 style={{ fontSize: '1.8rem', color: 'var(--color-forest)', margin: 0 }}>
+                  Inspiring Leaders &amp; Transformational Highlights
+                </h2>
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem', margin: '6px 0 0 0', maxWidth: '720px' }}>
+                  Foundational wisdom, proven quotes, and leadership milestones from visionary figures guiding youth across Rwanda and the world.
+                </p>
+              </div>
+
+              {currentUser && ['admin', 'super_admin', 'content_editor'].includes(currentUser.role) && (
+                <Link href="/dashboard/admin" className="btn btn-outline btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <Sparkles size={14} style={{ color: 'var(--color-gold)' }} />
+                  <span>Manage Highlights (Admin)</span>
+                </Link>
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '26px' }}>
+              {leadersRes.rows.map((leader) => (
+                <article 
+                  key={leader.id} 
+                  className="card" 
+                  style={{ 
+                    borderRadius: '16px', 
+                    border: '1px solid rgba(201, 155, 67, 0.35)', 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    padding: '28px',
+                    backgroundColor: '#FFFFFF',
+                    boxShadow: '0 4px 20px -2px rgba(20, 36, 56, 0.08), 0 0 0 1px rgba(201, 155, 67, 0.1)',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                >
+                  <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
+                    <span className="badge badge-gold" style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {leader.badge || 'Featured Leader'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
+                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '2.5px solid var(--color-gold)', backgroundColor: '#0f1e2f', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
+                      <img 
+                        src={leader.image_url || '/about/profile.png'} 
+                        alt={leader.name} 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      />
+                    </div>
+                    <div style={{ minWidth: 0, paddingRight: '80px' }}>
+                      <h3 style={{ fontSize: '1.2rem', color: 'var(--color-forest)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {leader.name}
+                      </h3>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--color-emerald)', fontWeight: 600, marginTop: '2px', lineHeight: 1.3 }}>
+                        {leader.title}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* THE QUOTE */}
+                  <div style={{ position: 'relative', paddingLeft: '16px', borderLeft: '3px solid var(--color-gold)', marginBottom: '18px', flex: 1 }}>
+                    <Quote size={18} style={{ color: 'var(--color-gold)', opacity: 0.6, marginBottom: '4px' }} />
+                    <p style={{ fontSize: '0.96rem', fontStyle: 'italic', color: 'var(--color-forest)', lineHeight: 1.6, margin: 0, fontWeight: 500 }}>
+                      &ldquo;{leader.quote}&rdquo;
+                    </p>
+                  </div>
+
+                  {/* OPTIONAL VIDEO SPEECH / KEYNOTE HIGHLIGHT */}
+                  {leader.video_url && (
+                    <div style={{ marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem', color: 'var(--color-emerald)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                        <Video size={13} />
+                        <span>Speech &amp; Keynote Video</span>
+                      </div>
+                      <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(20, 36, 56, 0.12)', backgroundColor: '#000', position: 'relative', paddingBottom: '56.25%', height: 0 }}>
+                        <iframe
+                          src={leader.video_url}
+                          title={`Speech by ${leader.name}`}
+                          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* KEY HIGHLIGHT / IMPACT SUMMARY */}
+                  {leader.highlight && (
+                    <div style={{ padding: '12px 14px', backgroundColor: '#F4F8F6', borderRadius: '10px', fontSize: '0.84rem', color: 'var(--color-text-main)', lineHeight: 1.5, marginTop: 'auto' }}>
+                      <strong style={{ color: 'var(--color-forest)', display: 'block', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+                        Key Leadership Impact:
+                      </strong>
+                      {leader.highlight}
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+
           <StickBoard
             initialNotes={notesRes.rows}
-            canCompose={Boolean(currentUser)}
+            canCompose={true}
             isLoggedIn={Boolean(currentUser)}
+            currentUser={currentUser}
+            isAdmin={Boolean(currentUser && isStaffRole(currentUser.role))}
           />
 
           {/* ACTIVE LEADERSHIP CHALLENGES */}

@@ -113,13 +113,13 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Unauthorized to update resources.' }, { status: 403 });
     }
 
+    const body = await request.json();
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const id = searchParams.get('id') || body.id;
     if (!id) {
       return NextResponse.json({ error: 'Resource ID is required.' }, { status: 400 });
     }
 
-    const body = await request.json();
     const { title, description, fileType, fileUrl, fileSizeMb, categoryId, isPublic, status } = body;
 
     const res = await query(

@@ -2,10 +2,33 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ExternalLink, FileText, Heart, Image as ImageIcon, MessageSquarePlus, Pencil, Quote, Trash2, Video, X } from 'lucide-react';
+import { StickTonePicker, TONE_OPTIONS } from './StickTonePicker';
+import { 
+  ExternalLink, 
+  FileText, 
+  Heart, 
+  Image as ImageIcon, 
+  MessageSquarePlus, 
+  Pencil, 
+  Quote, 
+  Trash2, 
+  Video, 
+  X,
+  Upload,
+  Sparkles,
+  Filter
+} from 'lucide-react';
 
-const TONES = ['tone-gold', 'tone-green', 'tone-ivory', 'tone-ink'];
-const EMPTY_FORM = { title: '', body: '', noteKind: 'quote', mediaUrl: '', mediaType: 'none' };
+const EMPTY_FORM = { 
+  title: '', 
+  body: '', 
+  noteKind: 'quote', 
+  tone: 'tone-gold',
+  mediaUrl: '', 
+  mediaType: 'none',
+  authorName: '',
+  schoolName: ''
+};
 
 function MediaIcon({ type, size }) {
   if (type === 'image') return <ImageIcon size={size} />;
@@ -36,10 +59,12 @@ function NoteCard({ note, index, actions }) {
     }
   };
 
+  const noteTone = note.tone || TONE_OPTIONS[index % TONE_OPTIONS.length].id;
+
   return (
-    <article className={`stick-note ${TONES[index % TONES.length]}`} style={{ '--note-index': index }}>
+    <article className={`stick-note ${noteTone}`} style={{ '--note-index': index }}>
       <div className="stick-note-topline">
-        <span className="stick-kind">{note.note_kind}</span>
+        <span className="stick-kind">{note.note_kind || 'quote'}</span>
         {note.visibility && (
           <span className={`stick-status stick-status-${note.visibility}`}>
             {note.visibility === 'pending' ? 'Awaiting review' : note.visibility === 'published' ? 'On community wall' : 'Private'}
@@ -47,7 +72,7 @@ function NoteCard({ note, index, actions }) {
         )}
       </div>
       <h3>{note.title}</h3>
-      <p>{note.body}</p>
+      <p style={{ whiteSpace: 'pre-line' }}>{note.body}</p>
       {note.media_type === 'image' && note.media_url && (
         <a href={note.media_url} target="_blank" rel="noreferrer" className="stick-media-link">
           <img src={note.media_url} alt={`Image attached to ${note.title}`} className="stick-media" />
@@ -60,12 +85,12 @@ function NoteCard({ note, index, actions }) {
       )}
       {note.media_type === 'pdf' && note.media_url && (
         <a className="stick-attachment-link" href={note.media_url} target="_blank" rel="noreferrer">
-          <MediaIcon type={note.media_type} size={17} /> Open shared PDF <ExternalLink size={14} />
+          <MediaIcon type={note.media_type} size={17} /> Open shared PDF document <ExternalLink size={14} />
         </a>
       )}
       <footer>
-        <strong>{note.full_name}</strong>
-        <span>{note.school_name || 'INTAMBWE community'}</span>
+        <strong>{note.full_name || 'Anonymous Leader'}</strong>
+        <span>{note.school_name || 'INTAMBWE Community'}</span>
       </footer>
       <div className="stick-note-reactions">
         {note.can_like === false ? (
@@ -81,15 +106,16 @@ function NoteCard({ note, index, actions }) {
         )}
         {likeError && <span className="stick-like-error" role="alert">{likeError}</span>}
       </div>
-      {actions && <div className="stick-note-actions">{actions}</div>}
+      {actions && <div className="stick-note-actions" style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>{actions}</div>}
     </article>
   );
 }
 
-export default function StickBoard({ initialNotes = [], canCompose = false, isLoggedIn = false }) {
+export default function StickBoard({ initialNotes = [], canCompose = false, isLoggedIn = false, currentUser = null, isAdmin = false }) {
   const [notes, setNotes] = useState(() => Array.isArray(initialNotes) ? initialNotes : []);
   const [myNotes, setMyNotes] = useState([]);
   const [activeView, setActiveView] = useState('community');
+  const [selectedKindFilter, setSelectedKindFilter] = useState('all');
   const [showComposer, setShowComposer] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -98,6 +124,7 @@ export default function StickBoard({ initialNotes = [], canCompose = false, isLo
   const [mineLoaded, setMineLoaded] = useState(true);
   const [mineRequestId, setMineRequestId] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn || activeView !== 'mine') return;
@@ -124,15 +151,51 @@ export default function StickBoard({ initialNotes = [], canCompose = false, isLo
   const openComposer = (note = null) => {
     setEditingNote(note);
     setForm(note ? {
-      title: note.title,
-      body: note.body,
-      noteKind: note.note_kind,
+      title: note.title || '',
+      body: note.body || '',
+      noteKind: note.note_kind || 'quote',
+      tone: note.tone || 'tone-gold',
       mediaUrl: note.media_url || '',
       mediaType: note.media_type || 'none',
-    } : EMPTY_FORM);
+      authorName: note.full_name || '',
+      schoolName: note.school_name || '',
+    } : {
+      ...EMPTY_FORM,
+      authorName: currentUser?.full_name || '',
+      schoolName: currentUser?.school_name || '',
+    });
     setMessage('');
     setError('');
     setShowComposer(true);
+  };
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError('');
+    try {
+      const data = new FormData();
+      data.append('file', file);
+      const res = await fetch('/api/upload', { method: 'POST', body: data });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'File upload failed');
+
+      const name = file.name.toLowerCase();
+      let detectedType = 'image';
+      if (name.endsWith('.pdf')) detectedType = 'pdf';
+      else if (name.endsWith('.mp4') || name.endsWith('.mov') || name.endsWith('.webm')) detectedType = 'video';
+
+      setForm((prev) => ({
+        ...prev,
+        mediaUrl: json.url,
+        mediaType: detectedType,
+      }));
+    } catch (err) {
+      setError(err.message || 'Could not upload file');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const submit = async (event) => {
@@ -150,21 +213,16 @@ export default function StickBoard({ initialNotes = [], canCompose = false, isLo
       if (!res.ok) throw new Error(data.error || 'Could not save your contribution.');
 
       const savedNote = data.note;
+      setNotes((current) => editingNote
+        ? current.map((n) => n.id === savedNote.id ? savedNote : n)
+        : [savedNote, ...current]);
       setMyNotes((current) => editingNote
-        ? current.map((note) => note.id === savedNote.id ? savedNote : note)
+        ? current.map((n) => n.id === savedNote.id ? savedNote : n)
         : [savedNote, ...current]);
 
-      if (savedNote.visibility === 'published') {
-        setNotes((current) => editingNote
-          ? current.map((note) => note.id === savedNote.id ? savedNote : note)
-          : [savedNote, ...current]);
-      } else {
-        setNotes((current) => current.filter((note) => note.id !== savedNote.id));
-      }
-
-      setMessage(data.message || 'Contribution saved.');
+      setMessage(data.message || 'Your idea is now live on the public community wall!');
       setShowComposer(false);
-      setActiveView('mine');
+      setActiveView('community');
       setEditingNote(null);
       setForm(EMPTY_FORM);
     } catch (requestError) {
@@ -183,50 +241,109 @@ export default function StickBoard({ initialNotes = [], canCompose = false, isLo
       if (!res.ok) throw new Error(data.error || 'Could not delete the contribution.');
       setMyNotes((current) => current.filter((item) => item.id !== note.id));
       setNotes((current) => current.filter((item) => item.id !== note.id));
+      setMessage('Note deleted successfully.');
     } catch (requestError) {
       setError(requestError.message);
     }
   };
 
+  const filteredNotes = notes.filter((n) => {
+    if (selectedKindFilter === 'all') return true;
+    return n.note_kind === selectedKindFilter;
+  });
+
   return (
     <section className="stick-section">
       <div className="stick-section-head">
         <div>
-          <span className="badge badge-gold">Peer learning wall</span>
-          <h2>Ideas worth sharing</h2>
-          <p>Share a quote, a short speech, a learning resource, or a video link. Contributions appear on the community wall after staff review.</p>
+          <span className="badge badge-gold">Peer Learning Wall</span>
+          <h2>Ideas Worth Sharing</h2>
+          <p>Inspiring quotes, speeches, leadership reflections, and multimedia shared by youth delegates and mentors. Post your sticky note to the public wall.</p>
         </div>
         {canCompose && (
           <button type="button" className="btn btn-gold stick-compose-trigger" onClick={() => openComposer()}>
-            <MessageSquarePlus size={17} /> Share an idea
+            <MessageSquarePlus size={17} /> Post a Sticky Note
           </button>
         )}
       </div>
 
-      {isLoggedIn ? (
-        <div className="stick-view-tabs" role="tablist" aria-label="Community contributions">
-          <button type="button" role="tab" aria-selected={activeView === 'community'} className={activeView === 'community' ? 'active' : ''} onClick={() => setActiveView('community')}>
-            Community wall <span>{notes.length}</span>
-          </button>
-          <button type="button" role="tab" aria-selected={activeView === 'mine'} className={activeView === 'mine' ? 'active' : ''} onClick={() => { setError(''); setMineLoaded(false); setMineRequestId((current) => current + 1); setActiveView('mine'); }}>
-            My contributions
-          </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginBottom: '18px' }}>
+        {isLoggedIn ? (
+          <div className="stick-view-tabs" role="tablist" aria-label="Community contributions" style={{ margin: 0 }}>
+            <button type="button" role="tab" aria-selected={activeView === 'community'} className={activeView === 'community' ? 'active' : ''} onClick={() => setActiveView('community')}>
+              Community wall <span>{notes.length}</span>
+            </button>
+            <button type="button" role="tab" aria-selected={activeView === 'mine'} className={activeView === 'mine' ? 'active' : ''} onClick={() => { setError(''); setMineLoaded(false); setMineRequestId((current) => current + 1); setActiveView('mine'); }}>
+              My contributions
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.86rem', color: 'var(--color-forest)' }}>
+            <Sparkles size={16} style={{ color: 'var(--color-gold)' }} />
+            <span><strong>Open Wall:</strong> Anyone can post a note, quote, or resource to inspire Rwanda&apos;s youth leaders!</span>
+          </div>
+        )}
+
+        {/* KIND FILTER PILLS */}
+        {activeView === 'community' && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-subtle)', marginRight: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Filter size={13} /> Filter:
+            </span>
+            {['all', 'quote', 'speech', 'resource'].map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setSelectedKindFilter(k)}
+                className={`btn btn-sm ${selectedKindFilter === k ? 'btn-emerald' : 'btn-outline'}`}
+                style={{ fontSize: '0.76rem', padding: '4px 10px', textTransform: 'capitalize' }}
+              >
+                {k === 'all' ? 'All Types' : k}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {error && !showComposer && (
+        <div style={{ padding: '12px 16px', backgroundColor: '#fde8e8', color: '#9b1c1c', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>{error}</span>
+          <button onClick={() => setError('')} className="btn btn-outline btn-sm" style={{ padding: '2px 8px', fontSize: '0.75rem' }}>Dismiss</button>
         </div>
-      ) : (
-        <p className="stick-signin">
-          <Link href="/login?redirect=/community">Sign in</Link> to share a quote, speech, resource, or video link.
-        </p>
       )}
 
-      {error && !showComposer && <p role="alert" className="stick-error stick-board-error">{error}</p>}
+      {message && (
+        <div style={{ padding: '12px 16px', backgroundColor: 'var(--color-success-soft)', color: 'var(--color-forest)', borderRadius: '8px', marginBottom: '16px' }}>
+          {message}
+        </div>
+      )}
 
       {activeView === 'community' ? (
         <div className="stick-wall">
-          {notes.length === 0 ? (
+          {filteredNotes.length === 0 ? (
             <article className="stick-note tone-ivory">
-              <p>The wall is ready. The first approved quote or community message will appear here.</p>
+              <p>No contributions found in this filter. Be the first to share a leadership insight!</p>
             </article>
-          ) : notes.map((note, index) => <NoteCard key={note.id} note={{ ...note, can_like: isLoggedIn }} index={index} />)}
+          ) : filteredNotes.map((note, index) => {
+            const canModify = isAdmin || (currentUser && Number(note.user_id) === Number(currentUser.id));
+            return (
+              <NoteCard 
+                key={note.id} 
+                note={{ ...note, can_like: isLoggedIn }} 
+                index={index}
+                actions={canModify ? (
+                  <>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={() => openComposer(note)} style={{ padding: '4px 8px', fontSize: '0.75rem' }}>
+                      <Pencil size={12} /> Edit
+                    </button>
+                    <button type="button" className="btn btn-outline btn-sm stick-delete-button" onClick={() => deleteNote(note)} style={{ padding: '4px 8px', fontSize: '0.75rem', color: 'var(--color-danger)' }}>
+                      <Trash2 size={12} /> Delete
+                    </button>
+                  </>
+                ) : null}
+              />
+            );
+          })}
         </div>
       ) : !mineLoaded ? (
         <div className="stick-empty-state">Loading your contributions…</div>
@@ -246,8 +363,12 @@ export default function StickBoard({ initialNotes = [], canCompose = false, isLo
               index={index}
               actions={(
                 <>
-                  <button type="button" className="btn btn-outline btn-sm" onClick={() => openComposer(note)}><Pencil size={14} /> Edit</button>
-                  <button type="button" className="btn btn-outline btn-sm stick-delete-button" onClick={() => deleteNote(note)}><Trash2 size={14} /> Delete</button>
+                  <button type="button" className="btn btn-outline btn-sm" onClick={() => openComposer(note)} style={{ padding: '4px 8px', fontSize: '0.75rem' }}>
+                    <Pencil size={12} /> Edit
+                  </button>
+                  <button type="button" className="btn btn-outline btn-sm stick-delete-button" onClick={() => deleteNote(note)} style={{ padding: '4px 8px', fontSize: '0.75rem', color: 'var(--color-danger)' }}>
+                    <Trash2 size={12} /> Delete
+                  </button>
                 </>
               )}
             />
@@ -255,66 +376,132 @@ export default function StickBoard({ initialNotes = [], canCompose = false, isLo
         </div>
       )}
 
+      {/* COMPOSER MODAL */}
       {showComposer && (
         <div className="stick-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowComposer(false); }}>
-          <section className="stick-modal" role="dialog" aria-modal="true" aria-labelledby="stick-modal-title">
+          <section className="stick-modal" role="dialog" aria-modal="true" aria-labelledby="stick-modal-title" style={{ maxWidth: '640px' }}>
             <header className="stick-modal-header">
               <div>
                 <span className="badge badge-emerald">Community contribution</span>
                 <h2 id="stick-modal-title">{editingNote ? 'Edit your contribution' : 'Share something meaningful'}</h2>
-                <p>Staff review each contribution before it appears on the wall. You can edit or delete it later.</p>
+                <p>Share an uplifting quote, a speech excerpt, a useful learning resource, or an image with the INTAMBWE network.</p>
               </div>
               <button type="button" className="stick-modal-close" aria-label="Close dialog" onClick={() => setShowComposer(false)}><X size={20} /></button>
             </header>
 
             <form className="stick-form" onSubmit={submit}>
-              <div className="stick-form-grid">
+              <div className="stick-form-grid" style={{ marginBottom: '14px' }}>
                 <label>
-                  <span className="form-label">Title</span>
-                  <input className="form-input" required minLength={3} maxLength={180} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="A thought that could help another learner" />
+                  <span className="form-label">Your Name / Contributor *</span>
+                  <input 
+                    className="form-input" 
+                    required 
+                    minLength={2} 
+                    maxLength={120} 
+                    value={form.authorName} 
+                    onChange={(event) => setForm({ ...form, authorName: event.target.value })} 
+                    placeholder={currentUser?.full_name || 'e.g. Divine Keza, or Youth Mentor'} 
+                  />
                 </label>
                 <label>
-                  <span className="form-label">Contribution type</span>
+                  <span className="form-label">School / District / Organization</span>
+                  <input 
+                    className="form-input" 
+                    maxLength={120} 
+                    value={form.schoolName} 
+                    onChange={(event) => setForm({ ...form, schoolName: event.target.value })} 
+                    placeholder="e.g. FAWE Girls' School, Kigali" 
+                  />
+                </label>
+              </div>
+
+              <div className="stick-form-grid">
+                <label>
+                  <span className="form-label">Note Title / Quote Context *</span>
+                  <input className="form-input" required minLength={2} maxLength={180} value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="e.g. Leadership in Action, or Advice to Student Delegates" />
+                </label>
+                <label>
+                  <span className="form-label">Contribution format</span>
                   <select className="form-select" value={form.noteKind} onChange={(event) => setForm({ ...form, noteKind: event.target.value })}>
-                    <option value="quote">Quote</option>
-                    <option value="speech">Short speech</option>
+                    <option value="quote">Quote / Inspiring Words</option>
+                    <option value="speech">Short speech / Keynote</option>
                     <option value="resource">Learning resource</option>
                   </select>
                 </label>
               </div>
+
+              <StickTonePicker value={form.tone} onChange={(tone) => setForm({ ...form, tone })} />
               <label>
-                <span className="form-label">Your message</span>
-                <textarea className="form-textarea" required minLength={12} maxLength={4000} rows={5} value={form.body} onChange={(event) => setForm({ ...form, body: event.target.value })} placeholder="Write a helpful quote, speech, or resource description for fellow learners." />
+                <span className="form-label">Your message / Quote writing</span>
+                <textarea className="form-textarea" required minLength={3} maxLength={4000} rows={5} value={form.body} onChange={(event) => setForm({ ...form, body: event.target.value })} placeholder="Write a meaningful leadership quote, memorable words, or insightful reflection for fellow youth leaders..." />
                 <span className="stick-character-count">{form.body.length}/4000 characters</span>
               </label>
 
-              <div className="stick-form-grid">
-                <label>
-                  <span className="form-label">Attach a link (optional)</span>
-                  <input className="form-input" type="url" value={form.mediaUrl} onChange={(event) => setForm({ ...form, mediaUrl: event.target.value })} placeholder="https://…" />
-                </label>
-                <label>
-                  <span className="form-label">Link type</span>
-                  <select className="form-select" value={form.mediaType} onChange={(event) => setForm({ ...form, mediaType: event.target.value })}>
-                    <option value="none">No attachment</option>
-                    <option value="video">Video link (YouTube, Vimeo, MP4)</option>
-                    <option value="image">Image link</option>
-                    <option value="pdf">PDF link</option>
-                  </select>
-                </label>
+              {/* MEDIA ATTACHMENT / FILE UPLOAD */}
+              <div style={{ backgroundColor: '#F8FAF9', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-light)', marginBottom: '16px' }}>
+                <span className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                  <ImageIcon size={16} style={{ color: 'var(--color-emerald)' }} />
+                  <span>Attach Media (Image, PDF, Video)</span>
+                </span>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+                  <label>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--color-text-subtle)', display: 'block', marginBottom: '4px' }}>Upload File (Image / PDF)</span>
+                    <input 
+                      type="file" 
+                      accept="image/*,.pdf,video/mp4" 
+                      onChange={handleFileUpload}
+                      disabled={uploading}
+                      className="form-input"
+                      style={{ fontSize: '0.82rem', padding: '6px' }}
+                    />
+                  </label>
+                  <label>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--color-text-subtle)', display: 'block', marginBottom: '4px' }}>Or Paste Media URL</span>
+                    <input 
+                      className="form-input" 
+                      type="url" 
+                      value={form.mediaUrl} 
+                      onChange={(event) => setForm({ ...form, mediaUrl: event.target.value })} 
+                      placeholder="https://..." 
+                      style={{ fontSize: '0.85rem' }}
+                    />
+                  </label>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--color-text-subtle)' }}>Media format:</span>
+                    <select 
+                      className="form-select" 
+                      value={form.mediaType} 
+                      onChange={(event) => setForm({ ...form, mediaType: event.target.value })}
+                      style={{ fontSize: '0.8rem', padding: '4px 8px', width: 'auto' }}
+                    >
+                      <option value="none">None</option>
+                      <option value="image">Image</option>
+                      <option value="pdf">PDF Document</option>
+                      <option value="video">Video</option>
+                    </select>
+                  </label>
+                  {uploading && <span style={{ fontSize: '0.8rem', color: 'var(--color-emerald)' }}>Uploading file…</span>}
+                  {form.mediaUrl && (
+                    <span style={{ fontSize: '0.78rem', color: 'var(--color-emerald)' }}>✓ File attached: {form.mediaUrl.slice(0, 32)}…</span>
+                  )}
+                </div>
               </div>
-              <p className="stick-private-reminder">Video sharing accepts a public video URL. Uploading video files requires a configured media-storage service.</p>
+
               {error && <p role="alert" className="stick-error">{error}</p>}
               <div className="stick-modal-actions">
                 <button type="button" className="btn btn-outline" onClick={() => setShowComposer(false)}>Cancel</button>
-                <button type="submit" className="btn btn-emerald" disabled={saving}>{saving ? 'Saving…' : editingNote ? 'Save changes' : 'Send for review'}</button>
+                <button type="submit" className="btn btn-emerald" disabled={saving || uploading}>
+                  {saving ? 'Sharing…' : editingNote ? 'Save changes' : 'Share on Community Wall'}
+                </button>
               </div>
             </form>
           </section>
         </div>
       )}
-
-      {message && <p role="status" className="stick-message">{message}</p>}
     </section>
   );
 }

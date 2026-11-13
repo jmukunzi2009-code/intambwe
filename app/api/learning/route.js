@@ -31,9 +31,6 @@ export async function POST(request) {
     if (!user) {
       return NextResponse.json({ error: 'You must be logged in to track learning progress.' }, { status: 401 });
     }
-    if (user.role !== 'student') {
-      return NextResponse.json({ error: 'Only student accounts can track lesson progress.' }, { status: 403 });
-    }
 
     const body = await request.json();
     const articleId = Number(body.articleId);
@@ -152,17 +149,57 @@ export async function POST(request) {
       }
     }
 
+    // Calculate course stats and next lesson for real-time progress feedback
+    let courseStats = null;
+    let nextLesson = null;
+    if (article.rows[0].category_id) {
+      const catId = article.rows[0].category_id;
+      const statsRes = await query(
+        `SELECT COUNT(a.id)::int AS total,
+                COUNT(p.id)::int AS completed
+         FROM articles a
+         LEFT JOIN student_learning_progress p ON p.article_id = a.id AND p.user_id = $1
+         WHERE a.category_id = $2 AND a.status = 'published'`,
+        [user.id, catId]
+      );
+      const total = statsRes.rows[0]?.total || 0;
+      const completed = statsRes.rows[0]?.completed || 0;
+      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      const nextRes = await query(
+        `SELECT a.id, a.title, a.slug
+         FROM articles a
+         LEFT JOIN student_learning_progress p ON p.article_id = a.id AND p.user_id = $1
+         WHERE a.category_id = $2 AND a.status = 'published' AND p.id IS NULL
+         ORDER BY a.sort_order ASC, a.id ASC
+         LIMIT 1`,
+        [user.id, catId]
+      );
+
+      courseStats = {
+        total,
+        completed,
+        percent,
+        allCompleted: total > 0 && completed >= total,
+      };
+      if (nextRes.rows.length > 0) {
+        nextLesson = nextRes.rows[0];
+      }
+    }
+
     return NextResponse.json({
       success: true,
       isCompleted,
+      courseStats,
+      nextLesson,
       courseCertificate,
       pathwayCertificate,
       message: courseCertificate
-        ? `You completed ${courseCertificate.title}. Your course certificate is ready.`
+        ? `You completed ${courseCertificate.title}. Your course certificate is ready!`
         : pathwayCertificate
-        ? 'You finished every published lesson. Your leadership pathway certificate is ready.'
+        ? 'You finished every published lesson. Your leadership pathway certificate is ready!'
         : isCompleted
-          ? 'Lesson marked as completed. It is now part of your learning record.'
+          ? 'Lesson marked as completed. Your learning progress has been saved.'
           : 'Lesson unmarked.',
     });
   } catch (error) {

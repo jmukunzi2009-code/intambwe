@@ -1,3 +1,4 @@
+import AboutAdminClient from './AboutAdminClient';
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -27,10 +28,12 @@ export const metadata = {
 export default async function AboutPage() {
   const currentUser = await getCurrentUser();
 
-  const [teamRes, momentsRes] = await Promise.all([
+  const [teamRes, momentsRes, settingsRes] = await Promise.all([
     query('SELECT * FROM team_members WHERE is_active = TRUE ORDER BY sort_order ASC, id ASC'),
-    query('SELECT * FROM community_moments WHERE is_active = TRUE ORDER BY sort_order ASC, id ASC')
+    query('SELECT * FROM community_moments WHERE is_active = TRUE ORDER BY sort_order ASC, id ASC'),
+    query("SELECT setting_key, setting_value FROM website_settings WHERE setting_key = 'founder_image_url'")
   ]);
+  const founderImageUrl = settingsRes.rows[0]?.setting_value || '/about/sarah-image.jpg';
   const teamMembers = teamRes.rows;
   const communityMoments = momentsRes.rows;
 
@@ -86,13 +89,11 @@ export default async function AboutPage() {
               <article className="about-founder-card">
                 <div className="about-founder-cover">
                   <span className="about-founder-orbit" aria-hidden="true" />
-                  <Image
-                    src="/about/sarah-image.jpg"
+                  <img
+                    src={founderImageUrl}
                     alt="Irakoze Sarah Divine with fellow young leaders"
-                    fill
-                    priority
-                    sizes="(max-width: 640px) 100vw, (max-width: 980px) 35vw, 40vw"
                     className="about-founder-photo"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   />
                   <span className="about-founder-photo-shade" aria-hidden="true" />
                   <Image src="/intambwe-emblem.png" alt="INTAMBWE emblem" width={76} height={76} className="about-founder-emblem" />
@@ -355,6 +356,12 @@ export default async function AboutPage() {
             </Link>
           </div>
         </section>
+        <AboutAdminClient 
+          currentUser={currentUser} 
+          initialFounderImage={founderImageUrl} 
+          initialTeam={teamMembers} 
+          initialMoments={communityMoments} 
+        />
       </main>
 
       <Footer />

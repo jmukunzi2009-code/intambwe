@@ -98,7 +98,11 @@
 
 .sidebarSticky {
   position: sticky;
-  top: 90px;
+  top: 85px;
+  max-height: calc(100vh - 105px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding-right: 4px;
 }
 
 .galleryGrid {

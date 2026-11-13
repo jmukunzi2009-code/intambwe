@@ -1,12 +1,38 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { Menu, X, ArrowRight, User, ShieldCheck } from 'lucide-react';
+import { ThemeModeButton } from './ThemeProvider';
+
+const NAV_LINKS = [
+  { href: '/', label: 'Home' },
+  { href: '/about', label: 'About' },
+  { href: '/explore', label: 'Learn' },
+  { href: '/conferences', label: 'Conferences' },
+  { href: '/resources', label: 'Resources' },
+  { href: '/community', label: 'Community' },
+  { href: '/contact', label: 'Contact' },
+];
+
+function isActiveRoute(pathname, href) {
+  return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export default function Navbar({ currentUser = null }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setMobileMenuOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [mobileMenuOpen]);
 
   return (
     <header className="navbar">
@@ -23,21 +49,20 @@ export default function Navbar({ currentUser = null }) {
             </div>
           </Link>
 
-          {/* Desktop Nav Links */}
           <nav className="navbar-nav" aria-label="Main navigation">
             <ul className="nav-links">
-              <li><Link href="/" className="nav-link">Home</Link></li>
-              <li><Link href="/about" className="nav-link">About</Link></li>
-              <li><Link href="/explore" className="nav-link">Learn</Link></li>
-              <li><Link href="/conferences" className="nav-link">Conferences</Link></li>
-              <li><Link href="/resources" className="nav-link">Resources</Link></li>
-              <li><Link href="/community" className="nav-link">Community</Link></li>
-              <li><Link href="/contact" className="nav-link">Contact</Link></li>
+              {NAV_LINKS.map(({ href, label }) => (
+                <li key={href}>
+                  <Link href={href} className="nav-link" aria-current={isActiveRoute(pathname, href) ? 'page' : undefined}>
+                    {label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </nav>
 
-          {/* Desktop Actions */}
           <div className="nav-actions">
+            <ThemeModeButton />
             {currentUser ? (
               <div className="nav-auth-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Link 
@@ -65,13 +90,11 @@ export default function Navbar({ currentUser = null }) {
               </div>
             )}
 
-            {/* Mobile Hamburger */}
             <button 
               type="button"
-              className="btn btn-outline btn-sm mobile-menu-toggle"
-              style={{ padding: '8px' }}
+              className="mobile-menu-toggle"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle navigation menu"
+              aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-navigation"
             >
@@ -81,17 +104,19 @@ export default function Navbar({ currentUser = null }) {
         </div>
       </div>
 
-      {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <nav id="mobile-navigation" className="navbar-mobile-menu" aria-label="Mobile navigation">
-          <Link href="/" onClick={() => setMobileMenuOpen(false)} className="nav-link">Home</Link>
-          <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="nav-link">About</Link>
-          <Link href="/explore" onClick={() => setMobileMenuOpen(false)} className="nav-link">Learn</Link>
-          <Link href="/conferences" onClick={() => setMobileMenuOpen(false)} className="nav-link">Conferences</Link>
-          <Link href="/resources" onClick={() => setMobileMenuOpen(false)} className="nav-link">Resources</Link>
-          <Link href="/community" onClick={() => setMobileMenuOpen(false)} className="nav-link">Community</Link>
-          <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="nav-link">Contact</Link>
-          
+          {NAV_LINKS.map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => setMobileMenuOpen(false)}
+              className="nav-link"
+              aria-current={isActiveRoute(pathname, href) ? 'page' : undefined}
+            >
+              {label}
+            </Link>
+          ))}
           <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '16px', display: 'flex', gap: '10px' }}>
             {currentUser ? (
               <Link 
@@ -108,6 +133,7 @@ export default function Navbar({ currentUser = null }) {
               </>
             )}
           </div>
+          <ThemeModeButton className="mobile-theme-toggle" />
         </nav>
       )}
     </header>

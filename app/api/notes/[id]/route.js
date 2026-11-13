@@ -4,6 +4,7 @@ import { getCurrentUser, logAudit } from '@/lib/auth';
 import { isStaffRole } from '@/lib/permissions';
 
 export const runtime = 'nodejs';
+const ALLOWED_TONES = ['tone-gold', 'tone-green', 'tone-rose', 'tone-blue', 'tone-peach', 'tone-lavender', 'tone-ivory', 'tone-ink'];
 
 function cleanMedia(url) {
   const value = String(url || '').trim();
@@ -57,6 +58,7 @@ export async function PUT(request, { params }) {
     const mediaUrl = cleanMedia(body.mediaUrl);
     const mediaType = mediaUrl ? (body.mediaType || 'none') : 'none';
     const visibility = staff && ['pending', 'published', 'secret'].includes(body.visibility) ? body.visibility : 'published';
+    const tone = body.tone === undefined ? null : ALLOWED_TONES.includes(body.tone) ? body.tone : 'tone-gold';
 
     if (title.length < 2) {
       return NextResponse.json({ error: 'Title must be at least 2 characters.' }, { status: 400 });
@@ -68,10 +70,10 @@ export async function PUT(request, { params }) {
     const result = await query(
       `UPDATE stick_notes
        SET title = $3, body = $4, note_kind = $5, media_url = $6, media_type = $7,
-           visibility = $8, reviewed_by = $9, reviewed_at = NOW()
-       WHERE id = $1 AND (user_id = $2 OR $10)
+           visibility = $8, tone = COALESCE($9, tone), reviewed_by = $10, reviewed_at = NOW()
+       WHERE id = $1 AND (user_id = $2 OR $11)
        RETURNING *`,
-      [id, user.id, title, text, noteKind, mediaUrl, mediaType, visibility, staff ? user.id : null, staff]
+      [id, user.id, title, text, noteKind, mediaUrl, mediaType, visibility, tone, staff ? user.id : null, staff]
     );
 
     if (result.rows.length === 0) {
@@ -83,7 +85,7 @@ export async function PUT(request, { params }) {
       action: 'STICK_NOTE_UPDATED',
       entityType: 'stick_notes',
       entityId: id,
-      details: { title, noteKind, visibility },
+      details: { title, noteKind, visibility, tone: result.rows[0].tone },
     });
 
     return NextResponse.json({ success: true, note: result.rows[0] });
