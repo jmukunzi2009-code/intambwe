@@ -27,9 +27,9 @@ export async function POST(request) {
 
       const originalName = file.name || 'upload.bin';
       const ext = path.extname(originalName).toLowerCase() || '.png';
-      const safeExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.pdf', '.mp4'];
+      const safeExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.pdf', '.mp4', '.webm', '.mov', '.m4v', '.mp3', '.wav', '.ogg', '.m4a', '.aac', '.flac'];
       if (!safeExtensions.includes(ext)) {
-        return NextResponse.json({ error: 'Unsupported file type. Please upload an image, PDF, or video.' }, { status: 400 });
+        return NextResponse.json({ error: 'Unsupported file type. Please upload an image, PDF, video, or audio file.' }, { status: 400 });
       }
 
       const bytes = await file.arrayBuffer();
@@ -76,7 +76,13 @@ export async function POST(request) {
       else if (mime.includes('jpeg') || mime.includes('jpg')) ext = '.jpg';
       else if (mime.includes('webp')) ext = '.webp';
       else if (mime.includes('gif')) ext = '.gif';
+      else if (mime.includes('audio/mp4')) ext = '.m4a';
       else if (mime.includes('mp4')) ext = '.mp4';
+      else if (mime.includes('mpeg') || mime.includes('mp3')) ext = '.mp3';
+      else if (mime.includes('wav')) ext = '.wav';
+      else if (mime.includes('ogg')) ext = '.ogg';
+      else if (mime.includes('aac')) ext = '.aac';
+      else if (mime.includes('flac')) ext = '.flac';
 
       const safeBase = (requestedName || 'upload').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
       const filename = `${Date.now()}-${safeBase}${ext}`;

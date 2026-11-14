@@ -36,7 +36,7 @@ import {
   Heart,
   FileText,
   HelpCircle,
-  Upload
+  Upload,
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -89,6 +89,13 @@ function formatTime(value) {
   }).format(date);
 }
 
+function getLeaderMediaType(leader) {
+  if (['message', 'image', 'video', 'audio'].includes(leader.media_type)) return leader.media_type;
+  if (leader.video_url) return 'video';
+  if (leader.image_url && leader.image_url !== '/about/profile.png') return 'image';
+  return 'message';
+}
+
 export default function AdminDashboardClient({ 
   currentUser, 
   initialMetrics, 
@@ -139,6 +146,8 @@ export default function AdminDashboardClient({
     title: '',
     quote: '',
     highlight: '',
+    mediaType: 'message',
+    mediaUrl: '',
     imageUrl: '/about/profile.png',
     videoUrl: '',
     category: 'Youth Leadership',
@@ -912,12 +921,15 @@ export default function AdminDashboardClient({
   // --- LEADER HIGHLIGHTS HANDLERS ---
   const handleOpenLeaderModal = (leader = null) => {
     if (leader) {
+      const mediaType = getLeaderMediaType(leader);
       setEditingLeader(leader);
       setLeaderForm({
         name: leader.name || '',
         title: leader.title || '',
         quote: leader.quote || '',
         highlight: leader.highlight || '',
+        mediaType,
+        mediaUrl: leader.media_url || (mediaType === 'video' || mediaType === 'audio' ? leader.video_url : mediaType === 'image' ? leader.image_url : '') || '',
         imageUrl: leader.image_url || '/about/profile.png',
         videoUrl: leader.video_url || '',
         category: leader.category || 'Youth Leadership',
@@ -931,6 +943,8 @@ export default function AdminDashboardClient({
         title: '',
         quote: '',
         highlight: '',
+        mediaType: 'message',
+        mediaUrl: '',
         imageUrl: '/about/profile.png',
         videoUrl: '',
         category: 'Youth Leadership',
@@ -949,7 +963,11 @@ export default function AdminDashboardClient({
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(leaderForm),
+        body: JSON.stringify({
+          ...leaderForm,
+          imageUrl: leaderForm.mediaType === 'image' ? leaderForm.mediaUrl : '/about/profile.png',
+          videoUrl: leaderForm.mediaType === 'video' ? leaderForm.mediaUrl : '',
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save leader highlight');
@@ -2947,7 +2965,9 @@ export default function AdminDashboardClient({
                       <div key={`${leader.id}-${index}`} className="card" style={{ display: 'flex', flexDirection: 'column', borderRadius: '14px', border: '1px solid rgba(20, 36, 56, 0.08)', padding: '22px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
                           <span className="badge badge-gold" style={{ fontSize: '0.72rem' }}>{leader.badge || 'Featured Leader'}</span>
-                          <span style={{ fontSize: '0.74rem', color: 'var(--color-text-subtle)' }}>Order: {leader.sort_order}</span>
+                          <span style={{ fontSize: '0.74rem', color: 'var(--color-text-subtle)', textTransform: 'capitalize' }}>
+                            {getLeaderMediaType(leader)} - Order: {leader.sort_order}
+                          </span>
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
@@ -2960,16 +2980,24 @@ export default function AdminDashboardClient({
                           </div>
                         </div>
 
-                        <div style={{ paddingLeft: '12px', borderLeft: '3px solid var(--color-gold)', marginBottom: '14px', flex: 1 }}>
-                          <p style={{ fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--color-forest)', margin: 0, lineHeight: 1.5 }}>
-                            &ldquo;{leader.quote}&rdquo;
-                          </p>
-                        </div>
+                        {getLeaderMediaType(leader) === 'message' && (
+                          <div style={{ paddingLeft: '12px', borderLeft: '3px solid var(--color-gold)', marginBottom: '14px', flex: 1 }}>
+                            <p style={{ fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--color-forest)', margin: 0, lineHeight: 1.5 }}>
+                              &ldquo;{leader.quote}&rdquo;
+                            </p>
+                          </div>
+                        )}
 
-                        {leader.highlight && (
+                        {getLeaderMediaType(leader) === 'message' && leader.highlight && (
                           <div style={{ padding: '10px 12px', backgroundColor: '#F4F8F6', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--color-text-main)', marginBottom: '14px' }}>
                             <strong>Impact:</strong> {leader.highlight}
                           </div>
+                        )}
+
+                        {getLeaderMediaType(leader) !== 'message' && (
+                          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.82rem', margin: '0 0 14px' }}>
+                            This {getLeaderMediaType(leader)} highlight is shown in its matching community filter.
+                          </p>
                         )}
 
                         <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--color-border-light)', paddingTop: '12px', marginTop: 'auto' }}>
@@ -4580,50 +4608,91 @@ export default function AdminDashboardClient({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Inspiring Leadership Quote *</label>
-                <textarea
-                  rows={3}
-                  required
-                  className="form-textarea"
-                  value={leaderForm.quote}
-                  onChange={(e) => setLeaderForm({ ...leaderForm, quote: e.target.value })}
-                  placeholder="Share their transformational words of wisdom..."
-                />
+                <label className="form-label">Highlight Type *</label>
+                <select
+                  className="form-input"
+                  value={leaderForm.mediaType}
+                  onChange={(e) => setLeaderForm({ ...leaderForm, mediaType: e.target.value, mediaUrl: '' })}
+                >
+                  <option value="message">Message</option>
+                  <option value="image">Image</option>
+                  <option value="video">Video</option>
+                  <option value="audio">Audio</option>
+                </select>
+                <span style={{ fontSize: '0.78rem', color: 'var(--color-text-subtle)', marginTop: '4px', display: 'block' }}>
+                  To post written words, choose Message and fill in the message below. To post a photo, choose Image and paste its URL or upload the image. Visitors will find each post under the matching filter on the Community page.
+                </span>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Key Leadership Impact / Highlight Summary</label>
-                <textarea
-                  rows={2}
-                  className="form-textarea"
-                  value={leaderForm.highlight}
-                  onChange={(e) => setLeaderForm({ ...leaderForm, highlight: e.target.value })}
-                  placeholder="Summarize their key achievements or community impact..."
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Leader Photo URL (or Upload)</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={leaderForm.imageUrl}
-                    onChange={(e) => setLeaderForm({ ...leaderForm, imageUrl: e.target.value })}
-                    placeholder="/about/sarah-image.jpg or https://..."
+              {leaderForm.mediaType === 'message' && (
+                <div className="form-group">
+                  <label className="form-label">Message to Display on the Community Page *</label>
+                  <textarea
+                    rows={3}
+                    required
+                    className="form-textarea"
+                    value={leaderForm.quote}
+                    onChange={(e) => setLeaderForm({ ...leaderForm, quote: e.target.value })}
+                    placeholder="Write the message to share with the community..."
                   />
-                  <label className="btn btn-outline btn-sm" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-                    <FileUp size={15} />
-                    <span>Upload</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={(e) => handleFileUpload(e.target.files[0], (url) => setLeaderForm((prev) => ({ ...prev, imageUrl: url })))}
-                    />
-                  </label>
                 </div>
-              </div>
+              )}
+
+              {(leaderForm.mediaType === 'image' || leaderForm.mediaType === 'video' || leaderForm.mediaType === 'audio') && (
+                <div className="form-group">
+                  <label className="form-label">
+                    {leaderForm.mediaType === 'image' ? 'Highlight Image *' : leaderForm.mediaType === 'video' ? 'Highlight Video *' : 'Highlight Audio *'}
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      required
+                      className="form-input"
+                      value={leaderForm.mediaUrl}
+                      onChange={(e) => setLeaderForm({ ...leaderForm, mediaUrl: e.target.value })}
+                      placeholder={leaderForm.mediaType === 'video' ? 'YouTube URL or uploaded video' : 'Paste a media URL or upload a file'}
+                    />
+                    <label className="btn btn-outline btn-sm" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                      <FileUp size={15} />
+                      <span>Upload</span>
+                      <input
+                        type="file"
+                        accept={leaderForm.mediaType === 'image' ? 'image/*' : leaderForm.mediaType === 'video' ? 'video/*' : 'audio/*'}
+                        style={{ display: 'none' }}
+                        onChange={(e) => handleFileUpload(e.target.files[0], (url) => setLeaderForm((prev) => ({ ...prev, mediaUrl: url })))}
+                      />
+                    </label>
+                  </div>
+                  {leaderForm.mediaType === 'video' && (
+                    <span style={{ fontSize: '0.78rem', color: 'var(--color-text-subtle)', marginTop: '4px', display: 'block' }}>
+                      Paste a YouTube link or upload a video file. Uploaded files are limited to 25 MB.
+                    </span>
+                  )}
+                  {leaderForm.mediaType === 'image' && (
+                    <span style={{ fontSize: '0.78rem', color: 'var(--color-text-subtle)', marginTop: '4px', display: 'block' }}>
+                      Choose a photo file to upload, or paste its direct image URL. It will appear under Images on the Community page.
+                    </span>
+                  )}
+                  {leaderForm.mediaType === 'audio' && (
+                    <span style={{ fontSize: '0.78rem', color: 'var(--color-text-subtle)', marginTop: '4px', display: 'block' }}>
+                      Supported audio formats include MP3, WAV, OGG, M4A, AAC, and FLAC. Uploads are limited to 25 MB.
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {leaderForm.mediaType === 'message' && (
+                <div className="form-group">
+                  <label className="form-label">Key Leadership Impact / Highlight Summary</label>
+                  <textarea
+                    rows={2}
+                    className="form-textarea"
+                    value={leaderForm.highlight}
+                    onChange={(e) => setLeaderForm({ ...leaderForm, highlight: e.target.value })}
+                    placeholder="Add context or summarize the message..."
+                  />
+                </div>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div className="form-group">
@@ -4647,23 +4716,6 @@ export default function AdminDashboardClient({
                     placeholder="e.g. Vision & Governance"
                   />
                 </div>
-              </div>
-
-              <div className="form-group" style={{ marginTop: '14px' }}>
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Video size={16} style={{ color: 'var(--color-emerald)' }} />
-                  <span>Leader Keynote / Speech Video URL (Optional YouTube or Embed Link)</span>
-                </label>
-                <input
-                  type="url"
-                  className="form-input"
-                  value={leaderForm.videoUrl || ''}
-                  onChange={(e) => setLeaderForm({ ...leaderForm, videoUrl: e.target.value })}
-                  placeholder="https://www.youtube.com/embed/qp0HIF3SfI4"
-                />
-                <span style={{ fontSize: '0.78rem', color: 'var(--color-text-subtle)', marginTop: '4px', display: 'block' }}>
-                  If provided, an interactive video player will appear on this leader&apos;s card on the community wisdom wall.
-                </span>
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>

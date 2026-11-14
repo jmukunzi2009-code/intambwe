@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { isStaffRole } from '@/lib/permissions';
+import { normalizeLeaderHighlight } from '@/lib/leader-highlights';
 
 export const runtime = 'nodejs';
 
@@ -14,27 +15,19 @@ export async function PUT(request, { params }) {
 
     const { id } = await params;
     const body = await request.json();
-    const name = String(body.name || '').trim();
-    const title = String(body.title || '').trim();
-    const quote = String(body.quote || '').trim();
-    const highlight = String(body.highlight || '').trim();
-    const imageUrl = String(body.imageUrl || '').trim() || '/about/profile.png';
-    const videoUrl = String(body.videoUrl || '').trim() || null;
-    const category = String(body.category || 'Leadership Impact').trim();
-    const badge = String(body.badge || 'Featured Leader').trim();
-    const sortOrder = Number(body.sortOrder) || 0;
-
-    if (!name || !title || !quote) {
-      return NextResponse.json({ error: 'Name, title, and quote are required.' }, { status: 400 });
+    const normalized = normalizeLeaderHighlight(body);
+    if (normalized.error) {
+      return NextResponse.json({ error: normalized.error }, { status: 400 });
     }
+    const { name, title, quote, highlight, imageUrl, videoUrl, mediaType, mediaUrl, category, badge, sortOrder } = normalized.value;
 
     const res = await query(
       `UPDATE leader_highlights
        SET name = $2, title = $3, quote = $4, highlight = $5, image_url = $6, video_url = $7,
-           category = $8, badge = $9, sort_order = $10, updated_at = NOW()
+           media_type = $8, media_url = $9, category = $10, badge = $11, sort_order = $12, updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
-      [id, name, title, quote, highlight, imageUrl, videoUrl, category, badge, sortOrder]
+      [id, name, title, quote, highlight, imageUrl, videoUrl, mediaType, mediaUrl, category, badge, sortOrder]
     );
 
     if (res.rows.length === 0) {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { isStaffRole } from '@/lib/permissions';
+import { normalizeLeaderHighlight } from '@/lib/leader-highlights';
 
 export const runtime = 'nodejs';
 
@@ -25,25 +26,17 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const name = String(body.name || '').trim();
-    const title = String(body.title || '').trim();
-    const quote = String(body.quote || '').trim();
-    const highlight = String(body.highlight || '').trim();
-    const imageUrl = String(body.imageUrl || '').trim() || '/about/profile.png';
-    const videoUrl = String(body.videoUrl || '').trim() || null;
-    const category = String(body.category || 'Leadership Impact').trim();
-    const badge = String(body.badge || 'Featured Leader').trim();
-    const sortOrder = Number(body.sortOrder) || 0;
-
-    if (!name || !title || !quote) {
-      return NextResponse.json({ error: 'Name, title, and quote are required.' }, { status: 400 });
+    const normalized = normalizeLeaderHighlight(body);
+    if (normalized.error) {
+      return NextResponse.json({ error: normalized.error }, { status: 400 });
     }
+    const { name, title, quote, highlight, imageUrl, videoUrl, mediaType, mediaUrl, category, badge, sortOrder } = normalized.value;
 
     const res = await query(
-      `INSERT INTO leader_highlights (name, title, quote, highlight, image_url, video_url, category, badge, sort_order, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE)
+      `INSERT INTO leader_highlights (name, title, quote, highlight, image_url, video_url, media_type, media_url, category, badge, sort_order, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, TRUE)
        RETURNING *`,
-      [name, title, quote, highlight, imageUrl, videoUrl, category, badge, sortOrder]
+      [name, title, quote, highlight, imageUrl, videoUrl, mediaType, mediaUrl, category, badge, sortOrder]
     );
 
     return NextResponse.json({ success: true, leader: res.rows[0] }, { status: 201 });
