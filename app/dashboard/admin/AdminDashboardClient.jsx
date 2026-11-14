@@ -51,6 +51,7 @@ import {
   Cell, 
   Legend 
 } from 'recharts';
+import { uploadMediaFile } from '@/lib/upload-client';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 import { ThemeModeButton } from '@/components/ThemeProvider';
 import { StickTonePicker } from '@/components/StickTonePicker';
@@ -1220,16 +1221,9 @@ export default function AdminDashboardClient({
   // --- INSTANT FILE UPLOAD HELPER ---
   const handleFileUpload = async (file, onUploaded) => {
     if (!file) return;
-    const formData = new FormData();
-    formData.append('file', file);
     try {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload failed');
-      onUploaded(data.url);
+      const url = await uploadMediaFile(file, { purpose: 'admin' });
+      onUploaded(url);
       alert('File uploaded successfully!');
     } catch (err) {
       alert(err.message);

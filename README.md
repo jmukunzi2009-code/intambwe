@@ -139,5 +139,8 @@ intambwe/
 
 1. Connect the GitHub repository to [Vercel](https://vercel.com).
 2. In the Vercel project settings, configure `DATABASE_URL` and `SESSION_SECRET`.
-3. Set the build command to `npm run build`.
-4. Deploy the application.
+3. Create and connect a **public Vercel Blob** store, and add its `BLOB_READ_WRITE_TOKEN` to the project environment variables. User-uploaded founder, leader, community, and other media files are stored there because Vercel deployments do not keep files written into the app's `public` directory.
+4. Set the build command to `npm run build`.
+5. Deploy the application.
+
+For local development without a Blob store, uploads are saved under `public/uploads`. To test Blob uploads locally, connect the Blob store to the Development environment and configure `BLOB_READ_WRITE_TOKEN`.

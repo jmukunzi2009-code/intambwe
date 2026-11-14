@@ -12,6 +12,7 @@ import {
   Check, 
   Quote as QuoteIcon 
 } from 'lucide-react';
+import { uploadMediaFile } from '@/lib/upload-client';
 
 export default function AboutAdminClient({ 
   currentUser, 
@@ -52,12 +53,7 @@ export default function AboutAdminClient({
 
   // File upload helper
   const uploadFile = async (file) => {
-    const data = new FormData();
-    data.append('file', file);
-    const res = await fetch('/api/upload', { method: 'POST', body: data });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || 'Upload failed');
-    return json.url;
+    return uploadMediaFile(file, { purpose: 'admin' });
   };
 
   // --- FOUNDER PHOTO HANDLERS ---

@@ -18,6 +18,7 @@ import {
   Sparkles,
   Filter
 } from 'lucide-react';
+import { uploadMediaFile } from '@/lib/upload-client';
 
 const EMPTY_FORM = { 
   title: '', 
@@ -176,11 +177,7 @@ export default function StickBoard({ initialNotes = [], canCompose = false, isLo
     setUploading(true);
     setError('');
     try {
-      const data = new FormData();
-      data.append('file', file);
-      const res = await fetch('/api/upload', { method: 'POST', body: data });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'File upload failed');
+      const url = await uploadMediaFile(file, { purpose: 'community' });
 
       const name = file.name.toLowerCase();
       let detectedType = 'image';
@@ -189,7 +186,7 @@ export default function StickBoard({ initialNotes = [], canCompose = false, isLo
 
       setForm((prev) => ({
         ...prev,
-        mediaUrl: json.url,
+        mediaUrl: url,
         mediaType: detectedType,
       }));
     } catch (err) {
