@@ -129,9 +129,9 @@ export default async function StudentDashboardPage() {
     <>
       <Navbar currentUser={user} />
 
-      <main style={{ minHeight: '100vh', backgroundColor: '#F7FAF8', paddingBottom: '80px' }}>
+      <main className="student-dashboard" style={{ minHeight: '100vh', backgroundColor: '#F7FAF8', paddingBottom: '80px' }}>
         {/* STUDENT WELCOME BANNER */}
-        <section style={{ backgroundColor: 'var(--color-forest)', color: 'var(--color-white)', padding: '50px 0 40px 0' }}>
+        <section className="student-dashboard-hero" style={{ backgroundColor: 'var(--color-forest)', color: 'var(--color-white)', padding: '50px 0 40px 0' }}>
           <div className="container">
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '20px' }}>
               <div>
@@ -168,7 +168,7 @@ export default async function StudentDashboardPage() {
             </div>
 
             {/* STATS STRIP */}
-            <div style={{
+            <div className="student-dashboard-stats" style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
               gap: '16px',
@@ -229,7 +229,7 @@ export default async function StudentDashboardPage() {
         </section>
 
         {/* DASHBOARD CONTENT BODY */}
-        <div className="container" style={{ marginTop: '40px' }}>
+        <div className="container student-dashboard-content" style={{ marginTop: '40px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px', alignItems: 'flex-start' }}>
             
             {/* LEFT / MAIN COLUMN */}

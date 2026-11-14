@@ -176,7 +176,7 @@ export default async function CertificateVerificationPage({ params }) {
         {/* Security Stamp */}
         <div style={{ marginTop: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--color-text-subtle)' }}>
           <ShieldCheck size={16} style={{ color: 'var(--color-emerald)' }} />
-          <span>Officially verified by INTAMBWE Registry • Kigali, Rwanda</span>
+          <span>Officially verified by INTAMBWE Registry • Rwamagana, Eastern Province, Rwanda</span>
         </div>
       </div>
     </div>

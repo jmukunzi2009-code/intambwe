@@ -134,7 +134,7 @@ export async function PUT(request, { params }) {
       body.description = 'INTAMBWE Leadership Conference';
     }
     if (!body.venue) {
-      body.venue = 'Kigali, Rwanda';
+      body.venue = 'Rwamagana, Eastern Province, Rwanda';
     }
     if (!body.eventDate) {
       body.eventDate = new Date().toISOString().slice(0, 10);
@@ -162,7 +162,7 @@ export async function PUT(request, { params }) {
         data.eventDate || new Date().toISOString().slice(0, 10),
         data.startTime || '09:00',
         data.endTime || '16:00',
-        data.venue || 'Kigali, Rwanda',
+        data.venue || 'Rwamagana, Eastern Province, Rwanda',
         data.capacity || 200,
         data.status || 'published',
         data.summary || null,

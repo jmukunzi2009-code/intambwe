@@ -39,7 +39,7 @@ export default function ContactForm() {
 
       setStatus({
         type: 'success',
-        message: 'Your inquiry has been received. Our leadership coordination team in Kigali will reply shortly.',
+        message: 'Your inquiry has been received. Our leadership coordination team in Rwamagana will reply shortly.',
       });
       setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
     } catch (err) {

@@ -263,7 +263,7 @@ export default function AdminDashboardClient({
     eventDate: '',
     startTime: '09:00',
     endTime: '16:00',
-    venue: 'Kigali, Rwanda',
+    venue: 'Rwamagana, Eastern Province, Rwanda',
     capacity: 200,
     status: 'published',
   });
@@ -1240,9 +1240,9 @@ export default function AdminDashboardClient({
   ].filter((d) => d.value > 0);
 
   return (
-    <div className="dashboard-layout">
+    <div className="dashboard-layout admin-dashboard-layout">
       {/* SIDEBAR NAVIGATION */}
-      <aside className="dashboard-sidebar">
+      <aside className="dashboard-sidebar admin-dashboard-sidebar">
         <div style={{ padding: '24px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Image src="/intambwe-emblem.png" alt="INTAMBWE" width={40} height={44} className="brand-emblem dashboard-emblem" />
@@ -1257,7 +1257,7 @@ export default function AdminDashboardClient({
           </div>
         </div>
 
-        <nav className="dashboard-sidebar-nav" style={{ padding: '16px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <nav className="dashboard-sidebar-nav admin-dashboard-nav" aria-label="Admin dashboard sections" style={{ padding: '16px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <button 
             onClick={() => setActiveTab('overview')}
             style={{
@@ -1544,9 +1544,9 @@ export default function AdminDashboardClient({
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="dashboard-main">
+      <main className="dashboard-main admin-dashboard-main">
         {/* TOPBAR */}
-        <header className="dashboard-topbar">
+        <header className="dashboard-topbar admin-dashboard-topbar">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <h2 style={{ fontSize: '1.25rem', color: 'var(--color-forest)' }}>
               {activeTab === 'overview' && 'Executive Leadership Analytics & Overview'}
@@ -1612,7 +1612,7 @@ export default function AdminDashboardClient({
                 setNewMeeting({
                   meetingNumber: `INT-CONF-${new Date().getFullYear()}-${String(meetings.length + 1).padStart(2, '0')}`,
                   title: '', theme: '', description: '', eventDate: '', startTime: '09:00', endTime: '16:00',
-                  venue: 'Kigali, Rwanda', capacity: 200, status: 'published',
+                  venue: 'Rwamagana, Eastern Province, Rwanda', capacity: 200, status: 'published',
                   summary: '', outcomes: '', recommendations: '', coverImageUrl: '', videoUrl: '',
                 });
                 setShowMeetingModal(true);
@@ -1654,13 +1654,13 @@ export default function AdminDashboardClient({
         </header>
 
         {/* CONTENT PANELS */}
-        <div className="dashboard-content">
+        <div className="dashboard-content admin-dashboard-content">
 
           {/* 1. OVERVIEW TAB WITH RECHARTS */}
           {activeTab === 'overview' && (
-            <div>
+            <div className="admin-dashboard-overview">
               {/* METRICS CARDS */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+              <div className="admin-dashboard-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
                 <div className="card" style={{ borderLeft: '4px solid var(--color-forest)' }}>
                   <div style={{ fontSize: '0.8rem', color: 'var(--color-text-subtle)', textTransform: 'uppercase', fontWeight: 600 }}>
                     Registered Users
@@ -1711,7 +1711,7 @@ export default function AdminDashboardClient({
               </div>
 
               {/* RECHARTS ANALYTICS CHARTS */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '28px', marginBottom: '32px' }}>
+              <div className="admin-dashboard-charts" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '28px', marginBottom: '32px' }}>
                 
                 {/* Conference Registrations Bar Chart */}
                 <div className="card">
@@ -1764,7 +1764,7 @@ export default function AdminDashboardClient({
               </div>
 
               {/* RECENT ACTIVITY */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '28px' }}>
+              <div className="admin-dashboard-activity" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '28px' }}>
                 <div className="card">
                   <h3 style={{ fontSize: '1.15rem', marginBottom: '16px', color: 'var(--color-forest)' }}>
                     Conferences Status Summary

@@ -79,11 +79,11 @@ export default function Footer() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.9rem', color: '#b9c7bf' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <MapPin size={18} style={{ color: 'var(--color-gold)' }} />
-                <span>Kigali, Rwanda</span>
+                <span>Rwamagana, Eastern Province, Rwanda</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Mail size={18} style={{ color: 'var(--color-gold)' }} />
-                <span>contact@intambwe.org</span>
+                <a className="contact-email-link" href="mailto:intambwe@gmail.com">intambwe@gmail.com</a>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Phone size={18} style={{ color: 'var(--color-gold)' }} />

@@ -27,6 +27,32 @@ export const metadata = {
 
 export const revalidate = 0;
 
+function getEmbedVideoUrl(value) {
+  if (!value) return '';
+
+  try {
+    const url = new URL(value);
+    const host = url.hostname.replace(/^www\./, '');
+    let videoId = '';
+
+    if (host === 'youtu.be') {
+      videoId = url.pathname.split('/').filter(Boolean)[0] || '';
+    } else if (host === 'youtube.com' || host === 'm.youtube.com') {
+      if (url.pathname === '/watch') videoId = url.searchParams.get('v') || '';
+      else if (/^\/(embed|shorts)\/[^/]+/.test(url.pathname)) {
+        videoId = url.pathname.split('/')[2] || '';
+      }
+    }
+
+    if (videoId && /^[\w-]{11}$/.test(videoId)) {
+      return `https://www.youtube-nocookie.com/embed/${videoId}`;
+    }
+    return value;
+  } catch {
+    return value;
+  }
+}
+
 export default async function CommunityPage() {
   const currentUser = await getCurrentUser();
 
@@ -79,9 +105,9 @@ export default async function CommunityPage() {
     <>
       <Navbar currentUser={currentUser} />
 
-      <main style={{ minHeight: '100vh', paddingBottom: '80px' }}>
+      <main className="community-page" style={{ minHeight: '100vh', paddingBottom: '80px' }}>
         {/* HEADER */}
-        <section style={{ backgroundColor: 'var(--color-forest)', color: 'var(--color-white)', padding: '70px 0 50px 0' }}>
+        <section className="community-hero" style={{ backgroundColor: 'var(--color-forest)', color: 'var(--color-white)', padding: '70px 0 50px 0' }}>
           <div className="container" style={{ textAlign: 'center', maxWidth: '820px' }}>
             <span className="badge badge-gold" style={{ marginBottom: '14px' }}>Peer Collaboration</span>
             <h1 style={{ color: 'var(--color-white)', fontSize: 'clamp(2.2rem, 4vw, 3.2rem)', marginBottom: '16px' }}>
@@ -94,7 +120,7 @@ export default async function CommunityPage() {
         </section>
 
         {/* STUDENT PRIVACY & SAFETY BANNER */}
-        <div style={{ backgroundColor: '#F3F8F5', borderBottom: '1px solid var(--color-border)', padding: '14px 0' }}>
+        <div className="community-safety-banner" style={{ backgroundColor: '#F3F8F5', borderBottom: '1px solid var(--color-border)', padding: '14px 0' }}>
           <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '0.85rem', color: 'var(--color-forest)' }}>
             <ShieldCheck size={18} style={{ color: 'var(--color-emerald)' }} />
             <span>
@@ -103,14 +129,14 @@ export default async function CommunityPage() {
           </div>
         </div>
 
-        <div className="container" style={{ marginTop: '40px' }}>
+        <div className="container community-content" style={{ marginTop: '40px' }}>
           {/* VOICES OF IMPACT: TRANSFORMATIONAL LEADERS & WISDOM HIGHLIGHTS */}
-          <section style={{ marginBottom: '50px' }}>
+          <section className="community-highlights" style={{ marginBottom: '50px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '16px', marginBottom: '26px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                   <span className="badge badge-gold">Leadership Wisdom</span>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--color-emerald)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  <span className="community-highlights-kicker" style={{ fontSize: '0.8rem', color: 'var(--color-emerald)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     Voices of Impact
                   </span>
                 </div>
@@ -130,11 +156,11 @@ export default async function CommunityPage() {
               )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '26px' }}>
+            <div className="community-highlight-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '26px' }}>
               {leadersRes.rows.map((leader) => (
                 <article 
                   key={leader.id} 
-                  className="card" 
+                  className={`card community-highlight-card${leader.video_url ? ' has-video' : leader.image_url && leader.image_url !== '/about/profile.png' ? ' has-image' : ' text-highlight'}`}
                   style={{ 
                     borderRadius: '16px', 
                     border: '1px solid rgba(201, 155, 67, 0.35)', 
@@ -147,60 +173,55 @@ export default async function CommunityPage() {
                     overflow: 'hidden'
                   }}
                 >
-                  <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
+                  {leader.video_url && (
+                    <div className="community-highlight-video">
+                      <iframe
+                        src={getEmbedVideoUrl(leader.video_url)}
+                        title={`${leader.name} leadership highlight video`}
+                        loading="lazy"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                      <span className="community-highlight-video-caption"><Video size={14} /> Featured video</span>
+                    </div>
+                  )}
+                  {!leader.video_url && leader.image_url && leader.image_url !== '/about/profile.png' && (
+                    <figure className="community-highlight-image">
+                      <img src={leader.image_url} alt={`${leader.name} leadership highlight`} loading="lazy" />
+                      <figcaption>{leader.category || 'Leadership highlight'}</figcaption>
+                    </figure>
+                  )}
+                  <div className="community-highlight-badge" style={{ position: 'absolute', top: '16px', right: '16px' }}>
                     <span className="badge badge-gold" style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       {leader.badge || 'Featured Leader'}
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
-                    <div style={{ width: '64px', height: '64px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '2.5px solid var(--color-gold)', backgroundColor: '#0f1e2f', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
-                      <img 
-                        src={leader.image_url || '/about/profile.png'} 
-                        alt={leader.name} 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                      />
-                    </div>
+                  <div className="community-highlight-person" style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
+                    {!leader.video_url && (!leader.image_url || leader.image_url === '/about/profile.png') && (
+                      <div className="community-highlight-quote-icon" aria-hidden="true"><Quote size={22} /></div>
+                    )}
                     <div style={{ minWidth: 0, paddingRight: '80px' }}>
-                      <h3 style={{ fontSize: '1.2rem', color: 'var(--color-forest)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <h3 className="community-highlight-name" style={{ fontSize: '1.2rem', color: 'var(--color-forest)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {leader.name}
                       </h3>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--color-emerald)', fontWeight: 600, marginTop: '2px', lineHeight: 1.3 }}>
+                      <div className="community-highlight-role" style={{ fontSize: '0.8rem', color: 'var(--color-emerald)', fontWeight: 600, marginTop: '2px', lineHeight: 1.3 }}>
                         {leader.title}
                       </div>
                     </div>
                   </div>
 
                   {/* THE QUOTE */}
-                  <div style={{ position: 'relative', paddingLeft: '16px', borderLeft: '3px solid var(--color-gold)', marginBottom: '18px', flex: 1 }}>
+                  <div className={`community-highlight-quote${!leader.video_url && (!leader.image_url || leader.image_url === '/about/profile.png') ? ' is-featured-quote' : ''}`} style={{ position: 'relative', paddingLeft: '16px', borderLeft: '3px solid var(--color-gold)', marginBottom: '18px', flex: 1 }}>
                     <Quote size={18} style={{ color: 'var(--color-gold)', opacity: 0.6, marginBottom: '4px' }} />
                     <p style={{ fontSize: '0.96rem', fontStyle: 'italic', color: 'var(--color-forest)', lineHeight: 1.6, margin: 0, fontWeight: 500 }}>
                       &ldquo;{leader.quote}&rdquo;
                     </p>
                   </div>
 
-                  {/* OPTIONAL VIDEO SPEECH / KEYNOTE HIGHLIGHT */}
-                  {leader.video_url && (
-                    <div style={{ marginBottom: '16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem', color: 'var(--color-emerald)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
-                        <Video size={13} />
-                        <span>Speech &amp; Keynote Video</span>
-                      </div>
-                      <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(20, 36, 56, 0.12)', backgroundColor: '#000', position: 'relative', paddingBottom: '56.25%', height: 0 }}>
-                        <iframe
-                          src={leader.video_url}
-                          title={`Speech by ${leader.name}`}
-                          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      </div>
-                    </div>
-                  )}
-
                   {/* KEY HIGHLIGHT / IMPACT SUMMARY */}
                   {leader.highlight && (
-                    <div style={{ padding: '12px 14px', backgroundColor: '#F4F8F6', borderRadius: '10px', fontSize: '0.84rem', color: 'var(--color-text-main)', lineHeight: 1.5, marginTop: 'auto' }}>
+                    <div className="community-highlight-summary" style={{ padding: '12px 14px', backgroundColor: '#F4F8F6', borderRadius: '10px', fontSize: '0.84rem', color: 'var(--color-text-main)', lineHeight: 1.5, marginTop: 'auto' }}>
                       <strong style={{ color: 'var(--color-forest)', display: 'block', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
                         Key Leadership Impact:
                       </strong>
@@ -227,7 +248,7 @@ export default async function CommunityPage() {
               <h2 style={{ fontSize: '1.6rem' }}>Active Community Leadership Challenges</h2>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '28px' }}>
+            <div className="community-challenge-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '28px' }}>
               {challengesRes.rows.map((ch) => (
                 <div key={ch.id} className="card" style={{ borderLeft: '4px solid var(--color-gold)', display: 'flex', flexDirection: 'column' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
@@ -245,7 +266,7 @@ export default async function CommunityPage() {
                     {ch.description}
                   </p>
 
-                  <div style={{ backgroundColor: '#F9FCFA', padding: '14px', borderRadius: 'var(--radius-sm)', marginBottom: '20px', fontSize: '0.85rem' }}>
+                  <div className="community-challenge-instructions" style={{ backgroundColor: '#F9FCFA', padding: '14px', borderRadius: 'var(--radius-sm)', marginBottom: '20px', fontSize: '0.85rem' }}>
                     <strong style={{ color: 'var(--color-forest)', display: 'block', marginBottom: '6px' }}>Challenge Instructions:</strong>
                     <div style={{ color: 'var(--color-charcoal)', whiteSpace: 'pre-line' }}>{ch.instructions}</div>
                   </div>

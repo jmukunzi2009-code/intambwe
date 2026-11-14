@@ -50,9 +50,9 @@ INSERT INTO website_settings (setting_key, setting_value, description) VALUES
   ('philosophy', 'Learn. Think. Connect. Act. Create Impact.', 'Educational & Leadership Philosophy'),
   ('founder_name', 'Irakoze Sarah Divine', 'Founder of INTAMBWE'),
   ('founder_bio', 'A visionary young Rwandan leader whose international exposure and experiences exploring youth leadership in the United States inspired her to create INTAMBWE — a movement connecting students across schools to cultivate ethical, visionary African leadership.', 'Founder biography summary'),
-  ('contact_email', 'contact@intambwe.org', 'Official Contact Email'),
+  ('contact_email', 'intambwe@gmail.com', 'Official Contact Email'),
   ('contact_phone', '+250 788 000 000', 'Official Telephone'),
-  ('headquarters', 'Kigali, Rwanda', 'Organization Location'),
+  ('headquarters', 'Rwamagana, Eastern Province, Rwanda', 'Organization Location'),
   ('stats_schools_count', '12', 'Participating schools counter'),
   ('stats_students_impacted', '850', 'Youth impacted metric')
 ON CONFLICT (setting_key) DO NOTHING;

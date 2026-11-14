@@ -85,7 +85,7 @@ export default function LoginForm() {
       <div className="form-group">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
           <label className="form-label" style={{ marginBottom: 0 }}>Password</label>
-          <a href="#" onClick={(e) => { e.preventDefault(); alert('Please contact contact@intambwe.org to reset staff/student credentials.'); }} style={{ fontSize: '0.78rem', color: 'var(--color-emerald)', fontWeight: 600 }}>
+          <a href="mailto:intambwe@gmail.com?subject=Password%20reset%20request" style={{ fontSize: '0.78rem', color: 'var(--color-emerald)', fontWeight: 600 }}>
             Forgot password?
           </a>
         </div>

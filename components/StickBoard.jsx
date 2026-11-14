@@ -63,6 +63,7 @@ function NoteCard({ note, index, actions }) {
 
   return (
     <article className={`stick-note ${noteTone}`} style={{ '--note-index': index }}>
+      <div className="stick-note-art" aria-hidden="true" />
       <div className="stick-note-topline">
         <span className="stick-kind">{note.note_kind || 'quote'}</span>
         {note.visibility && (
@@ -262,7 +263,8 @@ export default function StickBoard({ initialNotes = [], canCompose = false, isLo
         </div>
         {canCompose && (
           <button type="button" className="btn btn-gold stick-compose-trigger" onClick={() => openComposer()}>
-            <MessageSquarePlus size={17} /> Post a Sticky Note
+            <MessageSquarePlus size={18} />
+            <span>Post a Sticky Note</span>
           </button>
         )}
       </div>
@@ -438,7 +440,7 @@ export default function StickBoard({ initialNotes = [], canCompose = false, isLo
               </label>
 
               {/* MEDIA ATTACHMENT / FILE UPLOAD */}
-              <div style={{ backgroundColor: '#F8FAF9', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-light)', marginBottom: '16px' }}>
+              <div className="stick-media-field" style={{ backgroundColor: '#F8FAF9', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-light)', marginBottom: '16px' }}>
                 <span className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                   <ImageIcon size={16} style={{ color: 'var(--color-emerald)' }} />
                   <span>Attach Media (Image, PDF, Video)</span>

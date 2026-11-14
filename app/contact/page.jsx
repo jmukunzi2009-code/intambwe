@@ -7,7 +7,7 @@ import ContactForm from './ContactForm';
 
 export const metadata = {
   title: 'Contact INTAMBWE | Headquarters & Partnerships',
-  description: 'Get in touch with the INTAMBWE youth leadership team in Kigali, Rwanda. Inquire about school partnerships and conference registration.',
+  description: 'Get in touch with the INTAMBWE youth leadership team in Rwamagana, Eastern Province, Rwanda. Inquire about school partnerships and conference registration.',
 };
 
 export default async function ContactPage() {
@@ -32,7 +32,7 @@ export default async function ContactPage() {
         </section>
 
         <div className="container" style={{ marginTop: '50px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '40px', alignItems: 'flex-start' }}>
+          <div className="contact-page-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '40px', alignItems: 'flex-start' }}>
             
             {/* CONTACT DETAILS & INFO */}
             <div>
@@ -42,7 +42,7 @@ export default async function ContactPage() {
                   INTAMBWE Youth Initiative
                 </h2>
                 <p style={{ color: 'var(--color-text-muted)', lineHeight: 1.7 }}>
-                  Founded by Irakoze Sarah Divine, operating across secondary schools and educational communities in Kigali and provinces throughout Rwanda.
+                  Founded by Irakoze Sarah Divine, INTAMBWE is based in Rwamagana, Eastern Province, and works with secondary schools and educational communities in Kigali and across Rwanda.
                 </p>
               </div>
 
@@ -53,7 +53,7 @@ export default async function ContactPage() {
                   </div>
                   <div>
                     <h4 style={{ fontSize: '1rem', marginBottom: '2px' }}>Location</h4>
-                    <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>Kigali, Rwanda</p>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>Rwamagana, Eastern Province, Rwanda</p>
                   </div>
                 </div>
 
@@ -63,7 +63,7 @@ export default async function ContactPage() {
                   </div>
                   <div>
                     <h4 style={{ fontSize: '1rem', marginBottom: '2px' }}>Email Inquiries</h4>
-                    <p style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>contact@intambwe.org</p>
+                    <a className="contact-email-link contact-page-email" href="mailto:intambwe@gmail.com">intambwe@gmail.com</a>
                   </div>
                 </div>
 

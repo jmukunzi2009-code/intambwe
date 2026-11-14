@@ -61,7 +61,7 @@ export async function POST(request) {
       body.description = 'INTAMBWE Youth Leadership Conference: bringing students and educators together for collaborative dialogue, ethics, and service.';
     }
     if (!body.venue) {
-      body.venue = 'Kigali, Rwanda';
+      body.venue = 'Rwamagana, Eastern Province, Rwanda';
     }
     if (!body.eventDate) {
       body.eventDate = new Date().toISOString().slice(0, 10);
@@ -85,7 +85,7 @@ export async function POST(request) {
         validatedData.eventDate || new Date().toISOString().slice(0, 10),
         validatedData.startTime || '09:00',
         validatedData.endTime || '16:00',
-        validatedData.venue || 'Kigali, Rwanda',
+        validatedData.venue || 'Rwamagana, Eastern Province, Rwanda',
         validatedData.capacity || 200,
         validatedData.status || 'published',
         validatedData.summary || null,
