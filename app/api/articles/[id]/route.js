@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import { getCurrentUser, logAudit } from '@/lib/auth';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 import { articleSchema } from '@/lib/validation';
+import { resolveQuizQuestions } from '@/lib/quiz';
 
 export const runtime = 'nodejs';
 
@@ -66,9 +67,9 @@ export async function PUT(request, { params }) {
     }
 
     const article = parsed.data;
-    const optionsJson = Array.isArray(article.quizOptions)
-      ? JSON.stringify(article.quizOptions)
-      : (typeof article.quizOptions === 'string' ? article.quizOptions : null);
+    const quizQuestions = resolveQuizQuestions(article);
+    const firstQuestion = quizQuestions[0];
+    const optionsJson = firstQuestion?.options ? JSON.stringify(firstQuestion.options) : null;
 
     const result = await query(
       `UPDATE articles
@@ -77,6 +78,7 @@ export async function PUT(request, { params }) {
            reflection_activity = $10, reading_time_minutes = $11, sort_order = $12, status = $13,
            cover_image_url = $14, video_url = $15,
            quiz_question = $16, quiz_options = $17, quiz_correct_index = $18, quiz_explanation = $19,
+           quiz_questions = $20,
            published_at = CASE WHEN $13 = 'published' THEN COALESCE(published_at, NOW()) ELSE published_at END,
            updated_at = NOW()
        WHERE id = $1
@@ -97,10 +99,11 @@ export async function PUT(request, { params }) {
         article.status || 'published',
         article.coverImageUrl || null,
         article.videoUrl || null,
-        article.quizQuestion || null,
+        firstQuestion?.question || article.quizQuestion || null,
         optionsJson,
-        Number.isInteger(article.quizCorrectIndex) ? article.quizCorrectIndex : 0,
-        article.quizExplanation || null,
+        firstQuestion?.correctIndex ?? (Number.isInteger(article.quizCorrectIndex) ? article.quizCorrectIndex : 0),
+        firstQuestion?.explanation || article.quizExplanation || null,
+        quizQuestions.length ? JSON.stringify(quizQuestions) : null,
       ]
     );
 

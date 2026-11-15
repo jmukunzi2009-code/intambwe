@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { isStaffRole } from '@/lib/permissions';
+import { normalizeMediaType } from '@/lib/media-type';
 
 export const runtime = 'nodejs';
 
@@ -29,6 +30,7 @@ export async function POST(request) {
     const role = String(body.role || '').trim();
     const bio = String(body.bio || '').trim();
     const imageUrl = String(body.imageUrl || '').trim() || '/about/profile.png';
+    const mediaType = normalizeMediaType(body.mediaType, imageUrl);
     const sortOrder = Number(body.sortOrder) || 0;
 
     if (!name || !role) {
@@ -36,10 +38,10 @@ export async function POST(request) {
     }
 
     const res = await query(
-      `INSERT INTO team_members (name, role, bio, image_url, sort_order, is_active)
-       VALUES ($1, $2, $3, $4, $5, TRUE)
+      `INSERT INTO team_members (name, role, bio, image_url, media_type, sort_order, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, TRUE)
        RETURNING *`,
-      [name, role, bio, imageUrl, sortOrder]
+      [name, role, bio, imageUrl, mediaType, sortOrder]
     );
 
     return NextResponse.json({ success: true, member: res.rows[0] }, { status: 201 });

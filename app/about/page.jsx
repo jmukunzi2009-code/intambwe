@@ -4,6 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import MediaAsset from '@/components/MediaAsset';
+import { inferMediaType } from '@/lib/media-type';
 import { getCurrentUser } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { 
@@ -61,7 +63,7 @@ export default async function AboutPage() {
     <>
       <Navbar currentUser={currentUser} />
 
-      <main>
+      <main className="about-page">
         {/* HERO */}
         <section className="about-hero">
           <div className="container about-hero-inner">
@@ -203,36 +205,27 @@ export default async function AboutPage() {
               )}
             </div>
 
-            <div className="about-team-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '24px' }}>
+            <div className="about-team-grid about-team-profile-grid">
               {teamMembers.length > 0 ? teamMembers.map((member) => (
-                <article 
-                  className="card" 
-                  key={member.id} 
-                  style={{ 
-                    overflow: 'hidden', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    transition: 'transform 240ms ease, box-shadow 240ms ease',
-                    border: '1px solid rgba(20, 36, 56, 0.09)'
-                  }}
-                >
-                  <div style={{ position: 'relative', width: '100%', height: '260px', backgroundColor: '#0f1e2f', overflow: 'hidden' }}>
-                    <img
-                      src={member.image_url || '/about/profile.png'}
-                      alt={member.name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                <article className="card about-team-profile" key={member.id}>
+                  <div className="about-team-profile-media">
+                    <MediaAsset
+                      url={member.image_url || '/about/profile.png'}
+                      mediaType={member.media_type || inferMediaType(member.image_url)}
+                      title={member.name}
+                      objectPosition="center 28%"
                     />
-                    <div style={{ position: 'absolute', bottom: '12px', left: '12px', right: '12px' }}>
-                      <span className="badge badge-gold" style={{ fontSize: '0.74rem', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+                    <div className="about-team-profile-role-wrap">
+                      <span className="badge badge-gold about-team-profile-role">
                         {member.role}
                       </span>
                     </div>
                   </div>
-                  <div style={{ padding: '20px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                    <h3 style={{ fontSize: '1.2rem', color: 'var(--color-forest)', marginBottom: '8px' }}>
+                  <div className="about-team-profile-body">
+                    <h3>
                       {member.name}
                     </h3>
-                    <p style={{ fontSize: '0.88rem', color: 'var(--color-text-muted)', lineHeight: 1.6, flex: 1 }}>
+                    <p>
                       {member.bio}
                     </p>
                   </div>
@@ -284,11 +277,11 @@ export default async function AboutPage() {
                     border: '1px solid rgba(20, 36, 56, 0.08)'
                   }}
                 >
-                  <div style={{ position: 'relative', width: '100%', height: '240px', overflow: 'hidden' }}>
-                    <img
-                      src={moment.image_url || '/about/group-photo.jpg'}
-                      alt={moment.title}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  <div style={{ position: 'relative', width: '100%', height: 'auto', aspectRatio: '16 / 10', overflow: 'hidden', backgroundColor: '#f1f4f2' }}>
+                    <MediaAsset
+                      url={moment.image_url || '/about/group-photo.jpg'}
+                      mediaType={moment.media_type || inferMediaType(moment.image_url)}
+                      title={moment.title}
                     />
                   </div>
                   <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>

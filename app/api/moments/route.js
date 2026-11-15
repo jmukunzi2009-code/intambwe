@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { isStaffRole } from '@/lib/permissions';
+import { normalizeMediaType } from '@/lib/media-type';
 
 export const runtime = 'nodejs';
 
@@ -28,6 +29,7 @@ export async function POST(request) {
     const title = String(body.title || '').trim();
     const description = String(body.description || '').trim();
     const imageUrl = String(body.imageUrl || '').trim() || '/about/group-photo.jpg';
+    const mediaType = normalizeMediaType(body.mediaType, imageUrl);
     const authorQuote = String(body.authorQuote || '').trim();
     const authorName = String(body.authorName || '').trim();
     const sortOrder = Number(body.sortOrder) || 0;
@@ -37,10 +39,10 @@ export async function POST(request) {
     }
 
     const res = await query(
-      `INSERT INTO community_moments (title, description, image_url, author_quote, author_name, sort_order, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, TRUE)
+      `INSERT INTO community_moments (title, description, image_url, media_type, author_quote, author_name, sort_order, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
        RETURNING *`,
-      [title, description, imageUrl, authorQuote, authorName, sortOrder]
+      [title, description, imageUrl, mediaType, authorQuote, authorName, sortOrder]
     );
 
     return NextResponse.json({ success: true, moment: res.rows[0] }, { status: 201 });

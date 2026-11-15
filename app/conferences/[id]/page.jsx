@@ -25,6 +25,7 @@ import {
 import RegisterConferenceButton from './RegisterConferenceButton';
 import PrintAgendaButton from './PrintAgendaButton';
 import styles from '../conferences.module.css';
+import { getVideoEmbedUrl } from '@/lib/video-embed';
 
 export const revalidate = 0;
 
@@ -231,13 +232,24 @@ export default async function ConferenceDetailPage({ params }) {
                     <span>Conference Highlights & Keynote Video</span>
                   </div>
                   <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: 'var(--radius-md)' }}>
-                    <iframe
-                      src={meeting.video_url}
-                      title="Summit Highlights"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-                    />
+                    {/\.(mp4|webm|mov|m4v|ogg|ogv)(\?.*)?$/i.test(meeting.video_url) || meeting.video_url.startsWith('/') ? (
+                      <video
+                        src={getVideoEmbedUrl(meeting.video_url)}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        aria-label="Conference highlights"
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', background: '#07121d' }}
+                      />
+                    ) : (
+                      <iframe
+                        src={meeting.video_url}
+                        title="Summit Highlights"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                      />
+                    )}
                   </div>
                 </div>
               )}

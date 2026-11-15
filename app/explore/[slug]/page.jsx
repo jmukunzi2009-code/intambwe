@@ -22,32 +22,9 @@ import {
 import ReflectionSubmitBox from './ReflectionSubmitBox';
 import MarkCompletedButton from './MarkCompletedButton';
 import LessonProgressBox from '@/components/LessonProgressBox';
+import { getVideoEmbedUrl } from '@/lib/video-embed';
 
 export const revalidate = 0;
-
-function getEmbedUrl(videoUrl) {
-  try {
-    const url = new URL(videoUrl);
-    const host = url.hostname.replace(/^www\./, '');
-
-    if (host === 'youtu.be') {
-      return `https://www.youtube-nocookie.com/embed/${url.pathname.slice(1)}`;
-    }
-
-    if (host === 'youtube.com') {
-      const videoId = url.searchParams.get('v');
-      if (videoId) return `https://www.youtube-nocookie.com/embed/${videoId}`;
-    }
-
-    if (host === 'vimeo.com' && /^\d+$/.test(url.pathname.slice(1))) {
-      return `https://player.vimeo.com/video/${url.pathname.slice(1)}`;
-    }
-  } catch {
-    return videoUrl;
-  }
-
-  return videoUrl;
-}
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -277,7 +254,7 @@ export default async function ArticleDetailPage({ params }) {
               ) : (
                 <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: 'var(--radius-md)' }}>
                   <iframe
-                    src={getEmbedUrl(article.video_url)}
+                    src={getVideoEmbedUrl(article.video_url)}
                     title={article.title}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
@@ -397,6 +374,7 @@ export default async function ArticleDetailPage({ params }) {
             quizOptions={article.quiz_options}
             quizCorrectIndex={article.quiz_correct_index}
             quizExplanation={article.quiz_explanation}
+            quizQuestions={article.quiz_questions}
           />
 
           {/* RELATED ARTICLES */}

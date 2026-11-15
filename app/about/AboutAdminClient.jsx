@@ -13,6 +13,8 @@ import {
   Quote as QuoteIcon 
 } from 'lucide-react';
 import { uploadMediaFile } from '@/lib/upload-client';
+import MediaPicker from '@/components/MediaPicker';
+import { inferMediaType } from '@/lib/media-type';
 
 export default function AboutAdminClient({ 
   currentUser, 
@@ -32,7 +34,7 @@ export default function AboutAdminClient({
   const [team, setTeam] = useState(initialTeam);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [editingTeamMember, setEditingTeamMember] = useState(null);
-  const [teamForm, setTeamForm] = useState({ name: '', role: '', bio: '', imageUrl: '/about/profile.png', sortOrder: 0 });
+  const [teamForm, setTeamForm] = useState({ name: '', role: '', bio: '', imageUrl: '/about/profile.png', mediaType: 'image', sortOrder: 0 });
   const [teamUploading, setTeamUploading] = useState(false);
 
   // Moment modal state
@@ -43,6 +45,7 @@ export default function AboutAdminClient({
     title: '',
     description: '',
     imageUrl: '/about/group-photo.jpg',
+    mediaType: 'image',
     authorQuote: '',
     authorName: '',
     sortOrder: 0
@@ -96,12 +99,14 @@ export default function AboutAdminClient({
       role: member.role || '',
       bio: member.bio || '',
       imageUrl: member.image_url || '/about/profile.png',
+      mediaType: member.media_type || inferMediaType(member.image_url),
       sortOrder: member.sort_order || 0
     } : {
       name: '',
       role: '',
       bio: '',
       imageUrl: '/about/profile.png',
+      mediaType: 'image',
       sortOrder: team.length + 1
     });
     setShowTeamModal(true);
@@ -109,6 +114,7 @@ export default function AboutAdminClient({
 
   const handleSaveTeamMember = async (e) => {
     e.preventDefault();
+    if (teamUploading) return;
     try {
       const res = await fetch(editingTeamMember ? `/api/team/${editingTeamMember.id}` : '/api/team', {
         method: editingTeamMember ? 'PUT' : 'POST',
@@ -142,6 +148,7 @@ export default function AboutAdminClient({
       title: moment.title || '',
       description: moment.description || '',
       imageUrl: moment.image_url || '/about/group-photo.jpg',
+      mediaType: moment.media_type || inferMediaType(moment.image_url),
       authorQuote: moment.author_quote || '',
       authorName: moment.author_name || '',
       sortOrder: moment.sort_order || 0
@@ -149,6 +156,7 @@ export default function AboutAdminClient({
       title: '',
       description: '',
       imageUrl: '/about/group-photo.jpg',
+      mediaType: 'image',
       authorQuote: '',
       authorName: '',
       sortOrder: moments.length + 1
@@ -158,6 +166,7 @@ export default function AboutAdminClient({
 
   const handleSaveMoment = async (e) => {
     e.preventDefault();
+    if (momentUploading) return;
     try {
       const res = await fetch(editingMoment ? `/api/moments/${editingMoment.id}` : '/api/moments', {
         method: editingMoment ? 'PUT' : 'POST',
@@ -340,37 +349,12 @@ export default function AboutAdminClient({
               </div>
 
               <div style={{ marginBottom: '14px' }}>
-                <label className="form-label">Upload Profile Photo</label>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    setTeamUploading(true);
-                    try {
-                      const url = await uploadFile(file);
-                      setTeamForm((prev) => ({ ...prev, imageUrl: url }));
-                    } catch (err) {
-                      alert(err.message);
-                    } finally {
-                      setTeamUploading(false);
-                    }
-                  }}
-                  disabled={teamUploading}
-                  className="form-input"
-                  style={{ fontSize: '0.82rem' }}
-                />
-                {teamUploading && <span style={{ fontSize: '0.8rem', color: 'var(--color-emerald)' }}>Uploading…</span>}
-              </div>
-
-              <div style={{ marginBottom: '18px' }}>
-                <label className="form-label">Photo URL</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={teamForm.imageUrl} 
-                  onChange={(e) => setTeamForm({ ...teamForm, imageUrl: e.target.value })} 
+                <label className="form-label">Profile media</label>
+                <MediaPicker
+                  value={teamForm.imageUrl}
+                  mediaType={teamForm.mediaType}
+                  onChange={(imageUrl, mediaType) => setTeamForm((previous) => ({ ...previous, imageUrl, mediaType }))}
+                  onUploadingChange={setTeamUploading}
                 />
               </div>
 
@@ -450,37 +434,12 @@ export default function AboutAdminClient({
               </div>
 
               <div style={{ marginBottom: '14px' }}>
-                <label className="form-label">Upload Moment Photo</label>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    setMomentUploading(true);
-                    try {
-                      const url = await uploadFile(file);
-                      setMomentForm((prev) => ({ ...prev, imageUrl: url }));
-                    } catch (err) {
-                      alert(err.message);
-                    } finally {
-                      setMomentUploading(false);
-                    }
-                  }}
-                  disabled={momentUploading}
-                  className="form-input"
-                  style={{ fontSize: '0.82rem' }}
-                />
-                {momentUploading && <span style={{ fontSize: '0.8rem', color: 'var(--color-emerald)' }}>Uploading…</span>}
-              </div>
-
-              <div style={{ marginBottom: '18px' }}>
-                <label className="form-label">Photo URL</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={momentForm.imageUrl} 
-                  onChange={(e) => setMomentForm({ ...momentForm, imageUrl: e.target.value })} 
+                <label className="form-label">Moment media</label>
+                <MediaPicker
+                  value={momentForm.imageUrl}
+                  mediaType={momentForm.mediaType}
+                  onChange={(imageUrl, mediaType) => setMomentForm((previous) => ({ ...previous, imageUrl, mediaType }))}
+                  onUploadingChange={setMomentUploading}
                 />
               </div>
 

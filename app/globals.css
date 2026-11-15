@@ -2675,6 +2675,7 @@ textarea:focus-visible {
 .about-founder-cover {
   position: relative;
   display: grid;
+  height: clamp(280px, 32vw, 430px);
   min-height: 230px;
   place-items: center;
   overflow: hidden;
@@ -2682,7 +2683,11 @@ textarea:focus-visible {
 }
 
 .about-founder-photo {
+  position: absolute;
+  inset: 0;
   z-index: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   object-position: center 35%;
 }
@@ -2989,6 +2994,90 @@ textarea:focus-visible {
   gap: 17px;
 }
 
+.about-team-profile-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
+  gap: 24px;
+}
+
+.about-team-profile {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid rgba(20, 36, 56, 0.1);
+  border-radius: 20px;
+  background: var(--surface-primary);
+  box-shadow: 0 8px 24px rgba(20, 36, 56, 0.07);
+  transition: transform 240ms ease, box-shadow 240ms ease, border-color 240ms ease;
+}
+
+.about-team-profile:hover {
+  transform: translateY(-5px);
+  border-color: rgba(23, 107, 82, 0.35);
+  box-shadow: 0 16px 34px rgba(20, 36, 56, 0.14);
+}
+
+.about-team-profile-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: #e9eee9;
+}
+
+.about-team-profile-media > img,
+.about-team-profile-media > video {
+  transition: transform 350ms ease;
+}
+
+.about-team-profile:hover .about-team-profile-media > img,
+.about-team-profile:hover .about-team-profile-media > video {
+  transform: scale(1.035);
+}
+
+.about-team-profile-role-wrap {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: flex-end;
+  min-height: 82px;
+  padding: 28px 16px 14px;
+  background: linear-gradient(transparent, rgba(11, 23, 37, 0.72));
+}
+
+.about-team-profile-role {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 0.76rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+}
+
+.about-team-profile-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 21px 22px;
+}
+
+.about-team-profile-body h3 {
+  color: var(--color-forest);
+  font-size: 1.2rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.about-team-profile-body p {
+  flex: 1;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
 .about-team-card {
   --team-accent: var(--color-emerald);
   --team-soft: #e8f4ec;
@@ -3284,7 +3373,8 @@ textarea:focus-visible {
   }
 
   .about-founder-cover {
-    min-height: 100%;
+    height: clamp(320px, 42vw, 430px);
+    min-height: 0;
   }
 
   .about-founder-caption {
@@ -3330,6 +3420,7 @@ textarea:focus-visible {
   }
 
   .about-founder-cover {
+    height: 240px;
     min-height: 205px;
   }
 
@@ -3564,6 +3655,109 @@ html[data-theme="dark"] .stick-tone-option.is-selected {
   border-color: #142438;
 }
 
+html[data-theme="dark"] .about-page {
+  color: var(--color-text-main);
+}
+
+html[data-theme="dark"] .about-page > section:not(.about-hero):not(.about-partnership) :is(h1, h2, h3, h4, h5, h6) {
+  color: var(--color-text-main);
+}
+
+html[data-theme="dark"] .about-page > section:not(.about-hero):not(.about-partnership) :is(p, li) {
+  color: var(--color-text-muted);
+}
+
+html[data-theme="dark"] .about-page .about-story-section,
+html[data-theme="dark"] .about-page .about-team-section,
+html[data-theme="dark"] .about-page .about-values-section,
+html[data-theme="dark"] .about-page .about-purpose-section,
+html[data-theme="dark"] .about-page .about-community-section {
+  background: var(--color-bg-soft);
+  border-color: var(--color-border);
+}
+
+html[data-theme="dark"] .about-page .about-founder-card,
+html[data-theme="dark"] .about-page .about-purpose-card,
+html[data-theme="dark"] .about-page .about-value-card,
+html[data-theme="dark"] .about-page .about-team-profile,
+html[data-theme="dark"] .about-page .about-team-card,
+html[data-theme="dark"] .about-page .about-community-gallery > .card {
+  background: var(--surface-primary);
+  border-color: var(--color-border);
+  color: var(--color-text-main);
+}
+
+html[data-theme="dark"] .about-page .about-team-profile:hover {
+  border-color: var(--color-emerald-light);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
+}
+
+html[data-theme="dark"] .about-page .about-purpose-card:hover,
+html[data-theme="dark"] .about-page .about-purpose-vision:hover,
+html[data-theme="dark"] .about-page .about-value-card:hover,
+html[data-theme="dark"] .about-page .about-team-card:hover {
+  background: var(--surface-secondary);
+}
+
+html[data-theme="dark"] .about-page .about-section-kicker,
+html[data-theme="dark"] .about-page .about-founder-role,
+html[data-theme="dark"] .about-page .about-value-number {
+  color: #e8c77f;
+}
+
+html[data-theme="dark"] .about-page .about-team-heading p,
+html[data-theme="dark"] .about-page .about-values-heading p,
+html[data-theme="dark"] .about-page .about-community-header p,
+html[data-theme="dark"] .about-page .about-founder-body > p,
+html[data-theme="dark"] .about-page .about-journey-intro,
+html[data-theme="dark"] .about-page .about-journey-step p,
+html[data-theme="dark"] .about-page .about-purpose-card p,
+html[data-theme="dark"] .about-page .about-value-card p,
+html[data-theme="dark"] .about-page .about-team-card p,
+html[data-theme="dark"] .about-page .about-community-gallery p {
+  color: var(--color-text-muted);
+}
+
+html[data-theme="dark"] .about-page .about-founder-quote {
+  background: var(--surface-secondary);
+  border-color: rgba(232, 199, 127, 0.3);
+}
+
+html[data-theme="dark"] .about-page .about-founder-quote p {
+  color: var(--color-text-main);
+}
+
+html[data-theme="dark"] .about-page .about-journey-step:hover {
+  background: var(--surface-secondary);
+}
+
+html[data-theme="dark"] .about-page .about-step-number {
+  background: var(--surface-secondary);
+  border-color: var(--color-border);
+  color: var(--color-emerald-light);
+}
+
+html[data-theme="dark"] .about-page .about-journey-step-final .about-step-number {
+  color: #e8c77f;
+}
+
+html[data-theme="dark"] .about-page .badge-gold {
+  background-color: #3b3020;
+  border-color: rgba(232, 199, 127, 0.35);
+  color: #f1cf82;
+}
+
+html[data-theme="dark"] .about-page .badge-emerald {
+  background-color: #18372e;
+  border-color: rgba(98, 197, 158, 0.3);
+  color: #82dbb6;
+}
+
+html[data-theme="dark"] .about-page .about-team-card .about-team-icon {
+  background: var(--surface-secondary);
+  color: var(--color-emerald-light);
+}
+
 .home-hero .container {
   animation: home-content-arrive 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -3602,10 +3796,18 @@ html[data-theme="dark"] .stick-tone-option.is-selected {
   min-width: 272px;
   background: linear-gradient(180deg, #10293a 0%, #0b1725 100%);
   box-shadow: 8px 0 28px rgba(11, 23, 37, 0.12);
+  position: relative;
+  top: auto;
+  bottom: auto;
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  align-self: stretch;
+  overflow: visible;
 }
 
 .admin-dashboard-nav {
-  overflow-y: auto;
+  overflow: visible;
   scrollbar-width: thin;
   scrollbar-color: rgba(201, 155, 67, 0.45) transparent;
 }
@@ -3689,6 +3891,51 @@ html[data-theme="dark"] .stick-tone-option.is-selected {
 
 .admin-dashboard-content :is(input, select, textarea) {
   max-width: 100%;
+}
+
+html[data-theme="dark"] .admin-dashboard-layout {
+  background:
+    radial-gradient(ellipse at 85% 0%, rgba(74, 179, 141, 0.08), transparent 34%),
+    var(--color-bg-soft);
+}
+
+html[data-theme="dark"] .admin-dashboard-main {
+  color: var(--color-text-main);
+}
+
+html[data-theme="dark"] .admin-dashboard-main :is(h1, h2, h3, h4, h5, h6) {
+  color: var(--color-text-main) !important;
+}
+
+html[data-theme="dark"] .admin-dashboard-main [style*="color: rgb(20, 36, 56)"],
+html[data-theme="dark"] .admin-dashboard-main [style*="color: rgb(11, 23, 37)"],
+html[data-theme="dark"] .admin-dashboard-main [style*="color: rgb(32, 43, 56)"],
+html[data-theme="dark"] .admin-dashboard-main [style*="color: rgb(41, 55, 71)"] {
+  color: var(--color-text-main) !important;
+}
+
+html[data-theme="dark"] .admin-dashboard-main [style*="background-color: rgb(248, 250, 249)"],
+html[data-theme="dark"] .admin-dashboard-main [style*="background-color: rgb(244, 248, 246)"],
+html[data-theme="dark"] .admin-dashboard-main [style*="background-color: rgb(244, 247, 245)"],
+html[data-theme="dark"] .admin-dashboard-main [style*="background: rgb(255, 255, 255)"],
+html[data-theme="dark"] .admin-dashboard-main [style*="background: rgb(244, 247, 245)"],
+html[data-theme="dark"] .admin-dashboard-main [style*="background: rgb(244, 248, 246)"] {
+  background-color: var(--surface-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-main);
+}
+
+html[data-theme="dark"] .admin-dashboard-topbar {
+  background: var(--surface-overlay);
+  border-bottom: 1px solid var(--color-border);
+}
+
+html[data-theme="dark"] .admin-dashboard-main .recharts-text {
+  fill: var(--color-text-muted);
+}
+
+html[data-theme="dark"] .admin-dashboard-main .recharts-cartesian-grid line {
+  stroke: var(--color-border);
 }
 
 .student-dashboard {

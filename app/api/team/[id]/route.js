@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { isStaffRole } from '@/lib/permissions';
+import { normalizeMediaType } from '@/lib/media-type';
 
 export const runtime = 'nodejs';
 
@@ -19,6 +20,7 @@ export async function PUT(request, { params }) {
     const role = String(body.role || '').trim();
     const bio = String(body.bio || '').trim();
     const imageUrl = String(body.imageUrl || '').trim();
+    const mediaType = normalizeMediaType(body.mediaType, imageUrl);
     const sortOrder = Number(body.sortOrder) || 0;
     const isActive = body.isActive !== false;
 
@@ -28,10 +30,11 @@ export async function PUT(request, { params }) {
 
     const res = await query(
       `UPDATE team_members
-       SET name = $1, role = $2, bio = $3, image_url = $4, sort_order = $5, is_active = $6, updated_at = NOW()
-       WHERE id = $7
+       SET name = $1, role = $2, bio = $3, image_url = $4, media_type = $5,
+           sort_order = $6, is_active = $7, updated_at = NOW()
+       WHERE id = $8
        RETURNING *`,
-      [name, role, bio, imageUrl, sortOrder, isActive, id]
+      [name, role, bio, imageUrl, mediaType, sortOrder, isActive, id]
     );
 
     if (res.rows.length === 0) {

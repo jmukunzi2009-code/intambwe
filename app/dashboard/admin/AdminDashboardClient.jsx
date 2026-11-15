@@ -55,8 +55,57 @@ import { uploadMediaFile } from '@/lib/upload-client';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 import { ThemeModeButton } from '@/components/ThemeProvider';
 import { StickTonePicker } from '@/components/StickTonePicker';
+import MediaPicker from '@/components/MediaPicker';
+import MediaAsset from '@/components/MediaAsset';
+import { inferMediaType } from '@/lib/media-type';
 
 const CHART_COLORS = ['#123B2A', '#167A50', '#D4A72C', '#3B82F6', '#8B5CF6'];
+
+const createEmptyQuizQuestion = () => ({
+  question: '',
+  options: ['', '', '', ''],
+  correctIndex: 0,
+  explanation: '',
+});
+
+const normalizeQuizOptions = (options) =>
+  Array.from({ length: 4 }, (_, index) => (typeof options?.[index] === 'string' ? options[index] : ''));
+
+function getArticleQuizQuestions(article) {
+  let questions = article.quiz_questions;
+  if (typeof questions === 'string') {
+    try {
+      questions = JSON.parse(questions);
+    } catch {
+      questions = null;
+    }
+  }
+  if (Array.isArray(questions) && questions.length > 0) {
+    return questions.map((question) => ({
+      question: question.question || '',
+      options: normalizeQuizOptions(question.options),
+      correctIndex: Number.isInteger(Number(question.correctIndex)) ? Number(question.correctIndex) : 0,
+      explanation: question.explanation || '',
+    }));
+  }
+
+  if (!article.quiz_question) return [createEmptyQuizQuestion()];
+
+  let options = article.quiz_options;
+  if (typeof options === 'string') {
+    try {
+      options = JSON.parse(options);
+    } catch {
+      options = null;
+    }
+  }
+  return [{
+    question: article.quiz_question,
+    options: normalizeQuizOptions(options),
+    correctIndex: Number.isInteger(Number(article.quiz_correct_index)) ? Number(article.quiz_correct_index) : 0,
+    explanation: article.quiz_explanation || '',
+  }];
+}
 
 function formatDate(value) {
   const date = String(value ?? '').slice(0, 10);
@@ -181,11 +230,13 @@ export default function AdminDashboardClient({
   const [communityMoments, setCommunityMoments] = useState(initialMoments || []);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [editingTeamMember, setEditingTeamMember] = useState(null);
-  const [teamForm, setTeamForm] = useState({ name: '', role: '', bio: '', imageUrl: '/about/profile.png', sortOrder: 0 });
+  const [teamForm, setTeamForm] = useState({ name: '', role: '', bio: '', imageUrl: '/about/profile.png', mediaType: 'image', sortOrder: 0 });
+  const [teamUploading, setTeamUploading] = useState(false);
 
   const [showMomentModal, setShowMomentModal] = useState(false);
   const [editingMoment, setEditingMoment] = useState(null);
-  const [momentForm, setMomentForm] = useState({ title: '', description: '', imageUrl: '/about/group-photo.jpg', authorQuote: '', authorName: '', sortOrder: 0 });
+  const [momentForm, setMomentForm] = useState({ title: '', description: '', imageUrl: '/about/group-photo.jpg', mediaType: 'image', authorQuote: '', authorName: '', sortOrder: 0 });
+  const [momentUploading, setMomentUploading] = useState(false);
 
   // Add Stick Note Modal State
   const [showAddStickNoteModal, setShowAddStickNoteModal] = useState(false);
@@ -200,6 +251,10 @@ export default function AdminDashboardClient({
   });
   const [meetingYearFilter, setMeetingYearFilter] = useState('all');
   const [editingMeetingId, setEditingMeetingId] = useState(null);
+  const [meetingImageUploading, setMeetingImageUploading] = useState(false);
+  const [meetingVideoUploading, setMeetingVideoUploading] = useState(false);
+  const [articleImageUploading, setArticleImageUploading] = useState(false);
+  const [articleVideoUploading, setArticleVideoUploading] = useState(false);
   const [editingArticleId, setEditingArticleId] = useState(null);
   const [learningActivity, setLearningActivity] = useState([]);
   const [learningActivityLoading, setLearningActivityLoading] = useState(false);
@@ -294,10 +349,7 @@ export default function AdminDashboardClient({
     coverImageUrl: '',
     videoUrl: '',
     status: 'published',
-    quizQuestion: '',
-    quizOptions: ['', '', '', ''],
-    quizCorrectIndex: 0,
-    quizExplanation: '',
+    quizQuestions: [createEmptyQuizQuestion()],
   });
 
   const years = [...new Set(meetings.map((meeting) => String(meeting.event_date).slice(0, 4)))].sort((a, b) => b.localeCompare(a));
@@ -633,6 +685,7 @@ export default function AdminDashboardClient({
   // Create Meeting
   const handleCreateMeeting = async (e) => {
     e.preventDefault();
+    if (meetingImageUploading || meetingVideoUploading) return;
     try {
       const res = await fetch(editingMeetingId ? `/api/meetings/${editingMeetingId}` : '/api/meetings', {
         method: editingMeetingId ? 'PUT' : 'POST',
@@ -695,11 +748,15 @@ export default function AdminDashboardClient({
   // Create Article
   const handleCreateArticle = async (e) => {
     e.preventDefault();
+    if (articleImageUploading || articleVideoUploading) return;
     try {
       const res = await fetch(editingArticleId ? `/api/articles/${editingArticleId}` : '/api/articles', {
         method: editingArticleId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newArticle),
+        body: JSON.stringify({
+          ...newArticle,
+          quizQuestions: newArticle.quizQuestions.filter((question) => question.question.trim()),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create article');
@@ -732,10 +789,7 @@ export default function AdminDashboardClient({
       coverImageUrl: article.cover_image_url || '',
       videoUrl: article.video_url || '',
       status: article.status,
-      quizQuestion: article.quiz_question || '',
-      quizOptions: Array.isArray(article.quiz_options) ? article.quiz_options : (article.quiz_options ? JSON.parse(article.quiz_options) : ['', '', '', '']),
-      quizCorrectIndex: Number.isInteger(Number(article.quiz_correct_index)) ? Number(article.quiz_correct_index) : 0,
-      quizExplanation: article.quiz_explanation || '',
+      quizQuestions: getArticleQuizQuestions(article),
     });
     setShowArticleModal(true);
   };
@@ -1098,6 +1152,7 @@ export default function AdminDashboardClient({
         role: member.role || '',
         bio: member.bio || '',
         imageUrl: member.image_url || '/about/profile.png',
+        mediaType: member.media_type || inferMediaType(member.image_url),
         sortOrder: member.sort_order || 0,
       });
     } else {
@@ -1107,6 +1162,7 @@ export default function AdminDashboardClient({
         role: '',
         bio: '',
         imageUrl: '/about/profile.png',
+        mediaType: 'image',
         sortOrder: teamMembers.length + 1,
       });
     }
@@ -1115,6 +1171,7 @@ export default function AdminDashboardClient({
 
   const handleSaveTeamMember = async (e) => {
     e.preventDefault();
+    if (teamUploading) return;
     try {
       const url = editingTeamMember ? `/api/team/${editingTeamMember.id}` : '/api/team';
       const method = editingTeamMember ? 'PUT' : 'POST';
@@ -1160,6 +1217,7 @@ export default function AdminDashboardClient({
         title: moment.title || '',
         description: moment.description || '',
         imageUrl: moment.image_url || '/about/group-photo.jpg',
+        mediaType: moment.media_type || inferMediaType(moment.image_url),
         authorQuote: moment.author_quote || '',
         authorName: moment.author_name || '',
         sortOrder: moment.sort_order || 0,
@@ -1170,6 +1228,7 @@ export default function AdminDashboardClient({
         title: '',
         description: '',
         imageUrl: '/about/group-photo.jpg',
+        mediaType: 'image',
         authorQuote: '',
         authorName: '',
         sortOrder: communityMoments.length + 1,
@@ -1180,6 +1239,7 @@ export default function AdminDashboardClient({
 
   const handleSaveMoment = async (e) => {
     e.preventDefault();
+    if (momentUploading) return;
     try {
       const url = editingMoment ? `/api/moments/${editingMoment.id}` : '/api/moments';
       const method = editingMoment ? 'PUT' : 'POST';
@@ -1641,6 +1701,7 @@ export default function AdminDashboardClient({
                   title: '', slug: '', categoryId: categories[0]?.id || 1, introduction: '', content: '',
                   learningObjectives: '', practicalExercises: '', criticalThinkingQuestions: '',
                   reflectionActivity: '', readingTimeMinutes: 5, coverImageUrl: '', videoUrl: '', status: 'published',
+                  quizQuestions: [createEmptyQuizQuestion()],
                 });
                 setShowArticleModal(true);
               }} className="btn btn-emerald btn-sm">
@@ -2331,6 +2392,7 @@ export default function AdminDashboardClient({
                           title: '', slug: '', categoryId: targetCatId, introduction: '', content: '',
                           learningObjectives: '', practicalExercises: '', criticalThinkingQuestions: '',
                           reflectionActivity: '', readingTimeMinutes: 5, coverImageUrl: '', videoUrl: '', status: 'published',
+                          quizQuestions: [createEmptyQuizQuestion()],
                         });
                         setShowArticleModal(true);
                       }} 
@@ -2404,6 +2466,7 @@ export default function AdminDashboardClient({
                               title: '', slug: '', categoryId: selectedCat.id, introduction: '', content: '',
                               learningObjectives: '', practicalExercises: '', criticalThinkingQuestions: '',
                               reflectionActivity: '', readingTimeMinutes: 5, coverImageUrl: '', videoUrl: '', status: 'published',
+                              quizQuestions: [createEmptyQuizQuestion()],
                             });
                             setShowArticleModal(true);
                           }}
@@ -2451,6 +2514,7 @@ export default function AdminDashboardClient({
                               title: '', slug: '', categoryId: selectedCat.id, introduction: '', content: '',
                               learningObjectives: '', practicalExercises: '', criticalThinkingQuestions: '',
                               reflectionActivity: '', readingTimeMinutes: 5, coverImageUrl: '', videoUrl: '', status: 'published',
+                              quizQuestions: [createEmptyQuizQuestion()],
                             });
                             setShowArticleModal(true);
                           }}
@@ -2579,6 +2643,7 @@ export default function AdminDashboardClient({
                                     title: '', slug: '', categoryId: course.id, introduction: '', content: '',
                                     learningObjectives: '', practicalExercises: '', criticalThinkingQuestions: '',
                                     reflectionActivity: '', readingTimeMinutes: 5, coverImageUrl: '', videoUrl: '', status: 'published',
+                                    quizQuestions: [createEmptyQuizQuestion()],
                                   });
                                   setShowArticleModal(true);
                                 }}
@@ -2847,7 +2912,7 @@ export default function AdminDashboardClient({
                 {teamMembers.map((member) => (
                   <div key={member.id} className="card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '12px', border: '1px solid rgba(20, 36, 56, 0.08)' }}>
                     <div style={{ height: '220px', width: '100%', position: 'relative', backgroundColor: '#0f1e2f', overflow: 'hidden' }}>
-                      <img src={member.image_url || '/about/profile.png'} alt={member.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <MediaAsset url={member.image_url || '/about/profile.png'} mediaType={member.media_type || inferMediaType(member.image_url)} title={member.name} />
                       <div style={{ position: 'absolute', bottom: '10px', left: '10px' }}>
                         <span className="badge badge-gold" style={{ fontSize: '0.72rem' }}>{member.role}</span>
                       </div>
@@ -2885,7 +2950,7 @@ export default function AdminDashboardClient({
                 {communityMoments.map((moment) => (
                   <div key={moment.id} className="card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '12px', border: '1px solid rgba(20, 36, 56, 0.08)' }}>
                     <div style={{ height: '180px', width: '100%', position: 'relative', overflow: 'hidden' }}>
-                      <img src={moment.image_url || '/about/group-photo.jpg'} alt={moment.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <MediaAsset url={moment.image_url || '/about/group-photo.jpg'} mediaType={moment.media_type || inferMediaType(moment.image_url)} title={moment.title} />
                     </div>
                     <div style={{ padding: '18px', flex: 1, display: 'flex', flexDirection: 'column' }}>
                       <h4 style={{ fontSize: '1.1rem', color: 'var(--color-forest)', marginBottom: '8px' }}>{moment.title}</h4>
@@ -3606,7 +3671,7 @@ export default function AdminDashboardClient({
             </div>
 
             <form onSubmit={handleCreateMeeting}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
                 <div className="form-group">
                   <label className="form-label">Meeting Number</label>
                   <input type="text" required className="form-input" value={newMeeting.meetingNumber} onChange={(e) => setNewMeeting({ ...newMeeting, meetingNumber: e.target.value })} />
@@ -3665,20 +3730,32 @@ export default function AdminDashboardClient({
                 </select>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
                 <div className="form-group">
-                  <label className="form-label">Conference image URL (optional)</label>
-                  <input className="form-input" value={newMeeting.coverImageUrl || ''} onChange={(e) => setNewMeeting({ ...newMeeting, coverImageUrl: e.target.value })} placeholder="https://... or /images/conference.jpg" />
+                  <label className="form-label">Conference image (optional)</label>
+                  <MediaPicker
+                    value={newMeeting.coverImageUrl || ''}
+                    mediaType="image"
+                    allowedTypes={['image']}
+                    onChange={(coverImageUrl) => setNewMeeting((current) => ({ ...current, coverImageUrl }))}
+                    onUploadingChange={setMeetingImageUploading}
+                  />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Conference video URL (optional)</label>
-                  <input className="form-input" value={newMeeting.videoUrl || ''} onChange={(e) => setNewMeeting({ ...newMeeting, videoUrl: e.target.value })} placeholder="https://... or /meeting.mp4" />
+                  <label className="form-label">Conference video (optional)</label>
+                  <MediaPicker
+                    value={newMeeting.videoUrl || ''}
+                    mediaType="video"
+                    allowedTypes={['video']}
+                    onChange={(videoUrl) => setNewMeeting((current) => ({ ...current, videoUrl }))}
+                    onUploadingChange={setMeetingVideoUploading}
+                  />
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
                 <button type="button" onClick={() => { setShowMeetingModal(false); setEditingMeetingId(null); }} className="btn btn-outline">Cancel</button>
-                <button type="submit" className="btn btn-emerald">{editingMeetingId ? 'Save changes' : 'Publish Conference'}</button>
+                <button type="submit" className="btn btn-emerald" disabled={meetingImageUploading || meetingVideoUploading}>{editingMeetingId ? 'Save changes' : 'Publish Conference'}</button>
               </div>
             </form>
           </div>
@@ -3768,36 +3845,28 @@ export default function AdminDashboardClient({
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
                 <div className="form-group">
-                  <label className="form-label">Cover Image URL or local path</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    value={newArticle.coverImageUrl} 
-                    onChange={(e) => setNewArticle({ ...newArticle, coverImageUrl: e.target.value })} 
-                    placeholder="https://... or /images/leadership.jpg"
+                  <label className="form-label">Cover image (optional)</label>
+                  <MediaPicker
+                    value={newArticle.coverImageUrl}
+                    mediaType="image"
+                    allowedTypes={['image']}
+                    onChange={(coverImageUrl) => setNewArticle((current) => ({ ...current, coverImageUrl }))}
+                    onUploadingChange={setArticleImageUploading}
                   />
-                  <small style={{ display: 'block', marginTop: '6px', color: 'var(--color-text-subtle)' }}>Use a public image URL or a file in the project&apos;s public folder.</small>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Video URL or local video path</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    value={newArticle.videoUrl} 
-                    onChange={(e) => setNewArticle({ ...newArticle, videoUrl: e.target.value })} 
-                    placeholder="YouTube/Vimeo URL or /meeting.mp4"
+                  <label className="form-label">Lesson video (optional)</label>
+                  <MediaPicker
+                    value={newArticle.videoUrl}
+                    mediaType="video"
+                    allowedTypes={['video']}
+                    onChange={(videoUrl) => setNewArticle((current) => ({ ...current, videoUrl }))}
+                    onUploadingChange={setArticleVideoUploading}
                   />
-                  <small style={{ display: 'block', marginTop: '6px', color: 'var(--color-text-subtle)' }}>YouTube/Vimeo links embed; MP4, WebM, and Ogg links play in the lesson.</small>
                 </div>
               </div>
-              {newArticle.coverImageUrl && (
-                <div className="form-group">
-                  <label className="form-label">Image preview</label>
-                  <img src={newArticle.coverImageUrl} alt="Article cover preview" style={{ display: 'block', width: '100%', maxHeight: '220px', objectFit: 'cover', borderRadius: 'var(--radius-md)' }} />
-                </div>
-              )}
 
               <div className="form-group">
                 <label className="form-label">URL Slug</label>
@@ -3854,74 +3923,118 @@ export default function AdminDashboardClient({
 
               {/* LESSON COMPLETION TEST / KNOWLEDGE CHECK BUILDER */}
               <div style={{ backgroundColor: '#F8FAF9', padding: '20px', borderRadius: '12px', border: '1px solid var(--color-border-light)', marginTop: '20px', marginBottom: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-                  <HelpCircle size={18} style={{ color: 'var(--color-emerald)' }} />
-                  <h4 style={{ fontSize: '1.05rem', color: 'var(--color-forest)', margin: 0 }}>
-                    Lesson Completion Test &amp; Comprehension Check (Step Test)
-                  </h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <HelpCircle size={18} style={{ color: 'var(--color-emerald)' }} />
+                    <h4 style={{ fontSize: '1.05rem', color: 'var(--color-forest)', margin: 0 }}>
+                      Lesson Questions
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => setNewArticle((current) => ({ ...current, quizQuestions: [...current.quizQuestions, createEmptyQuizQuestion()] }))}
+                  >
+                    <Plus size={15} /> Add question
+                  </button>
                 </div>
                 <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', marginBottom: '16px' }}>
-                  Students must answer this test question correctly to mark this lesson complete, record progression, and unlock course certificates.
+                  Add one or more multiple-choice questions. Students need to answer every question correctly to complete the lesson.
                 </p>
 
-                <div className="form-group" style={{ marginBottom: '14px' }}>
-                  <label className="form-label">Test Question *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={newArticle.quizQuestion || ''}
-                    onChange={(e) => setNewArticle({ ...newArticle, quizQuestion: e.target.value })}
-                    placeholder="e.g. What is the fundamental foundation of self-leadership taught in this lesson?"
-                  />
-                </div>
+                <div style={{ display: 'grid', gap: '14px' }}>
+                  {newArticle.quizQuestions.map((question, questionIndex) => (
+                    <section key={questionIndex} style={{ padding: '16px', border: '1px solid var(--color-border-light)', borderRadius: '10px', background: '#FFFFFF' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                        <strong style={{ color: 'var(--color-forest)', fontSize: '0.9rem' }}>Question {questionIndex + 1}</strong>
+                        {newArticle.quizQuestions.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setNewArticle((current) => ({ ...current, quizQuestions: current.quizQuestions.filter((_, index) => index !== questionIndex) }))}
+                            className="btn btn-outline btn-sm"
+                            style={{ color: 'var(--color-danger)' }}
+                            aria-label={`Remove question ${questionIndex + 1}`}
+                          >
+                            <Trash2 size={14} /> Remove
+                          </button>
+                        )}
+                      </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
-                  <label className="form-label" style={{ marginBottom: '2px' }}>
-                    4 Multiple Choice Options (Select radio for the Correct Answer) *
-                  </label>
-                  {[0, 1, 2, 3].map((optIdx) => (
-                    <div key={optIdx} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: Number(newArticle.quizCorrectIndex) === optIdx ? 'var(--color-emerald)' : 'var(--color-text-subtle)' }}>
-                        <input
-                          type="radio"
-                          name="quizCorrectIndex"
-                          checked={Number(newArticle.quizCorrectIndex) === optIdx}
-                          onChange={() => setNewArticle({ ...newArticle, quizCorrectIndex: optIdx })}
-                          style={{ width: '18px', height: '18px', accentColor: 'var(--color-emerald)', cursor: 'pointer' }}
+                      <div className="form-group" style={{ marginBottom: '14px' }}>
+                        <label className="form-label">Question prompt</label>
+                        <textarea
+                          rows={2}
+                          required={Boolean(question.question.trim())}
+                          className="form-textarea"
+                          value={question.question}
+                          onChange={(event) => {
+                            const quizQuestions = [...newArticle.quizQuestions];
+                            quizQuestions[questionIndex] = { ...question, question: event.target.value };
+                            setNewArticle({ ...newArticle, quizQuestions });
+                          }}
+                          placeholder="Write the question you want students to answer..."
                         />
-                        Option {String.fromCharCode(65 + optIdx)}
-                      </label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={newArticle.quizOptions?.[optIdx] || ''}
-                        onChange={(e) => {
-                          const nextOpts = [...(newArticle.quizOptions || ['', '', '', ''])];
-                          nextOpts[optIdx] = e.target.value;
-                          setNewArticle({ ...newArticle, quizOptions: nextOpts });
-                        }}
-                        placeholder={`Answer text for Option ${String.fromCharCode(65 + optIdx)}${Number(newArticle.quizCorrectIndex) === optIdx ? ' (Marked as Correct Answer)' : ''}`}
-                        style={{ flex: 1, fontSize: '0.88rem' }}
-                      />
-                    </div>
-                  ))}
-                </div>
+                      </div>
 
-                <div className="form-group">
-                  <label className="form-label">Key Takeaway / Explanation shown upon completion</label>
-                  <textarea
-                    rows={2}
-                    className="form-textarea"
-                    value={newArticle.quizExplanation || ''}
-                    onChange={(e) => setNewArticle({ ...newArticle, quizExplanation: e.target.value })}
-                    placeholder="Brief explanation confirming the core insight and encouraging the student..."
-                  />
+                      <div style={{ display: 'grid', gap: '9px', marginBottom: '14px' }}>
+                        <label className="form-label" style={{ marginBottom: '0' }}>Answer options · select the correct answer</label>
+                        {question.options.map((option, optionIndex) => (
+                          <div key={optionIndex} style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, color: question.correctIndex === optionIndex ? 'var(--color-emerald)' : 'var(--color-text-subtle)' }}>
+                              <input
+                                type="radio"
+                                name={`quizCorrectIndex-${questionIndex}`}
+                                checked={question.correctIndex === optionIndex}
+                                onChange={() => {
+                                  const quizQuestions = [...newArticle.quizQuestions];
+                                  quizQuestions[questionIndex] = { ...question, correctIndex: optionIndex };
+                                  setNewArticle({ ...newArticle, quizQuestions });
+                                }}
+                                aria-label={`Mark option ${String.fromCharCode(65 + optionIndex)} correct`}
+                              />
+                              {String.fromCharCode(65 + optionIndex)}
+                            </label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={option}
+                              onChange={(event) => {
+                                const options = [...question.options];
+                                options[optionIndex] = event.target.value;
+                                const quizQuestions = [...newArticle.quizQuestions];
+                                quizQuestions[questionIndex] = { ...question, options };
+                                setNewArticle({ ...newArticle, quizQuestions });
+                              }}
+                              required={Boolean(question.question.trim())}
+                              placeholder={`Answer option ${String.fromCharCode(65 + optionIndex)}`}
+                              style={{ flex: 1, fontSize: '0.88rem' }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label className="form-label">Explanation (optional)</label>
+                        <textarea
+                          rows={2}
+                          className="form-textarea"
+                          value={question.explanation}
+                          onChange={(event) => {
+                            const quizQuestions = [...newArticle.quizQuestions];
+                            quizQuestions[questionIndex] = { ...question, explanation: event.target.value };
+                            setNewArticle({ ...newArticle, quizQuestions });
+                          }}
+                          placeholder="Explain the key takeaway after the student answers correctly..."
+                        />
+                      </div>
+                    </section>
+                  ))}
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
                 <button type="button" onClick={() => { setShowArticleModal(false); setEditingArticleId(null); }} className="btn btn-outline">Cancel</button>
-                <button type="submit" className="btn btn-emerald">{editingArticleId ? 'Save changes' : 'Save article'}</button>
+                <button type="submit" className="btn btn-emerald" disabled={articleImageUploading || articleVideoUploading}>{editingArticleId ? 'Save changes' : 'Save article'}</button>
               </div>
             </form>
           </div>
@@ -4152,13 +4265,12 @@ export default function AdminDashboardClient({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Profile Image URL (Local or Remote)</label>
-                <input
-                  type="text"
-                  className="form-input"
+                <label className="form-label">Profile media</label>
+                <MediaPicker
                   value={teamForm.imageUrl}
-                  onChange={(e) => setTeamForm({ ...teamForm, imageUrl: e.target.value })}
-                  placeholder="/about/sarah-image.jpg or https://..."
+                  mediaType={teamForm.mediaType}
+                  onChange={(imageUrl, mediaType) => setTeamForm((previous) => ({ ...previous, imageUrl, mediaType }))}
+                  onUploadingChange={setTeamUploading}
                 />
               </div>
 
@@ -4186,7 +4298,7 @@ export default function AdminDashboardClient({
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
                 <button type="button" onClick={() => setShowTeamModal(false)} className="btn btn-outline">Cancel</button>
-                <button type="submit" className="btn btn-emerald">{editingTeamMember ? 'Save Changes' : 'Create Profile'}</button>
+                <button type="submit" className="btn btn-emerald" disabled={teamUploading}>{editingTeamMember ? 'Save Changes' : 'Create Profile'}</button>
               </div>
             </form>
           </div>
@@ -4228,13 +4340,12 @@ export default function AdminDashboardClient({
               </div>
 
               <div className="form-group">
-                <label className="form-label">Moment Photo URL (Local or Remote)</label>
-                <input
-                  type="text"
-                  className="form-input"
+                <label className="form-label">Moment media</label>
+                <MediaPicker
                   value={momentForm.imageUrl}
-                  onChange={(e) => setMomentForm({ ...momentForm, imageUrl: e.target.value })}
-                  placeholder="/about/group-photo.jpg or https://..."
+                  mediaType={momentForm.mediaType}
+                  onChange={(imageUrl, mediaType) => setMomentForm((previous) => ({ ...previous, imageUrl, mediaType }))}
+                  onUploadingChange={setMomentUploading}
                 />
               </div>
 
@@ -4276,7 +4387,7 @@ export default function AdminDashboardClient({
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
                 <button type="button" onClick={() => setShowMomentModal(false)} className="btn btn-outline">Cancel</button>
-                <button type="submit" className="btn btn-emerald">{editingMoment ? 'Save Changes' : 'Publish Moment'}</button>
+                <button type="submit" className="btn btn-emerald" disabled={momentUploading}>{editingMoment ? 'Save Changes' : 'Publish Moment'}</button>
               </div>
             </form>
           </div>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { isStaffRole } from '@/lib/permissions';
+import { normalizeMediaType } from '@/lib/media-type';
 
 export const runtime = 'nodejs';
 
@@ -18,6 +19,7 @@ export async function PUT(request, { params }) {
     const title = String(body.title || '').trim();
     const description = String(body.description || '').trim();
     const imageUrl = String(body.imageUrl || '').trim();
+    const mediaType = normalizeMediaType(body.mediaType, imageUrl);
     const authorQuote = String(body.authorQuote || '').trim();
     const authorName = String(body.authorName || '').trim();
     const sortOrder = Number(body.sortOrder) || 0;
@@ -29,10 +31,11 @@ export async function PUT(request, { params }) {
 
     const res = await query(
       `UPDATE community_moments
-       SET title = $1, description = $2, image_url = $3, author_quote = $4, author_name = $5, sort_order = $6, is_active = $7, updated_at = NOW()
-       WHERE id = $8
+       SET title = $1, description = $2, image_url = $3, media_type = $4,
+           author_quote = $5, author_name = $6, sort_order = $7, is_active = $8, updated_at = NOW()
+       WHERE id = $9
        RETURNING *`,
-      [title, description, imageUrl, authorQuote, authorName, sortOrder, isActive, id]
+      [title, description, imageUrl, mediaType, authorQuote, authorName, sortOrder, isActive, id]
     );
 
     if (res.rows.length === 0) {

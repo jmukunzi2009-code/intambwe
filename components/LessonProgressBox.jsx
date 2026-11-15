@@ -27,6 +27,7 @@ export default function LessonProgressBox({
   quizOptions = null,
   quizCorrectIndex = 0,
   quizExplanation = null,
+  quizQuestions = null,
 }) {
   const [completed, setCompleted] = useState(initialCompleted);
   const [courseStats, setCourseStats] = useState(initialCourseStats || { total: 1, completed: initialCompleted ? 1 : 0, percent: initialCompleted ? 100 : 0 });
@@ -34,7 +35,7 @@ export default function LessonProgressBox({
   const [next, setNext] = useState(nextLesson);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [selectedAnswers, setSelectedAnswers] = useState({});
   const [committed, setCommitted] = useState(false);
   const [quizError, setQuizError] = useState('');
 
@@ -57,6 +58,18 @@ export default function LessonProgressBox({
   const correctIndex = Number.isInteger(Number(quizCorrectIndex)) ? Number(quizCorrectIndex) : 0;
   const questionText = quizQuestion || 'How should an INTAMBWE student leader put this lesson into daily practice?';
   const explanationText = quizExplanation || 'Excellence in leadership begins by taking personal initiative, listening with empathy, and acting with steadfast integrity.';
+  const questions = (() => {
+    let parsed = quizQuestions;
+    if (typeof parsed === 'string') {
+      try {
+        parsed = JSON.parse(parsed);
+      } catch {
+        parsed = null;
+      }
+    }
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    return [{ question: questionText, options, correctIndex, explanation: explanationText }];
+  })();
 
   if (!isLoggedIn) {
     return (
@@ -83,12 +96,15 @@ export default function LessonProgressBox({
   const handleCompleteWithCheck = async (e) => {
     if (e) e.preventDefault();
     if (!completed) {
-      if (selectedAnswer === null || selectedAnswer === undefined || selectedAnswer === '') {
-        setQuizError('Please select an answer to the comprehension test.');
+      const unansweredIndex = questions.findIndex((_, index) => selectedAnswers[index] === undefined);
+      if (unansweredIndex !== -1) {
+        setQuizError(`Please answer question ${unansweredIndex + 1}.`);
         return;
       }
-      if (Number(selectedAnswer) !== correctIndex) {
-        setQuizError(`Not quite. Key Takeaway: ${explanationText} Please review the lesson and try again!`);
+      const incorrectIndex = questions.findIndex((question, index) => Number(selectedAnswers[index]) !== Number(question.correctIndex || 0));
+      if (incorrectIndex !== -1) {
+        const explanation = questions[incorrectIndex].explanation || 'Review the lesson and try again.';
+        setQuizError(`Question ${incorrectIndex + 1}: Not quite. ${explanation}`);
         return;
       }
       if (!committed) {
@@ -203,47 +219,55 @@ export default function LessonProgressBox({
             <span>Practical Leadership Question</span>
           </h4>
           
-          <p style={{ fontSize: '0.95rem', color: 'var(--color-forest)', lineHeight: 1.6, marginBottom: '16px', fontWeight: 600 }}>
-            {questionText}
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px' }}>
-            {options.map((opt, idx) => {
-              const isSelected = Number(selectedAnswer) === idx;
-              const letter = String.fromCharCode(65 + idx);
-              return (
-                <label 
-                  key={idx}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'flex-start', 
-                    gap: '12px', 
-                    padding: '12px 14px', 
-                    borderRadius: '8px', 
-                    border: `1px solid ${isSelected ? 'var(--color-emerald)' : 'var(--color-border)'}`, 
-                    backgroundColor: isSelected ? '#EBF7F0' : '#FFFFFF', 
-                    cursor: 'pointer', 
-                    fontSize: '0.92rem',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <input 
-                    type="radio" 
-                    name="quiz" 
-                    value={idx} 
-                    checked={isSelected} 
-                    onChange={() => { setSelectedAnswer(idx); setQuizError(''); }} 
-                    style={{ marginTop: '3px', accentColor: 'var(--color-emerald)' }}
-                  />
-                  <span style={{ fontWeight: 700, color: isSelected ? 'var(--color-emerald)' : 'var(--color-text-subtle)', width: '20px', flexShrink: 0 }}>
-                    {letter}.
-                  </span>
-                  <span style={{ fontWeight: isSelected ? 600 : 400, color: 'var(--color-text-main)' }}>
-                    {opt}
-                  </span>
-                </label>
-              );
-            })}
+          <div style={{ display: 'grid', gap: '18px', marginBottom: '20px' }}>
+            {questions.map((question, questionIndex) => (
+              <section key={questionIndex} style={{ padding: '16px', borderRadius: '10px', border: '1px solid var(--color-border-light)', background: '#FFFFFF' }}>
+                <p style={{ fontSize: '0.95rem', color: 'var(--color-forest)', lineHeight: 1.6, margin: '0 0 12px', fontWeight: 700 }}>
+                  {questions.length > 1 && <span style={{ color: 'var(--color-emerald)' }}>Question {questionIndex + 1}. </span>}
+                  {question.question}
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+                  {(Array.isArray(question.options) && question.options.length > 0 ? question.options : options).map((option, optionIndex) => {
+                    const isSelected = Number(selectedAnswers[questionIndex]) === optionIndex;
+                    return (
+                      <label
+                        key={optionIndex}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '11px',
+                          padding: '11px 13px',
+                          borderRadius: '8px',
+                          border: `1px solid ${isSelected ? 'var(--color-emerald)' : 'var(--color-border)'}`,
+                          backgroundColor: isSelected ? '#EBF7F0' : '#FFFFFF',
+                          cursor: 'pointer',
+                          fontSize: '0.9rem',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name={`quiz-${questionIndex}`}
+                          value={optionIndex}
+                          checked={isSelected}
+                          onChange={() => {
+                            setSelectedAnswers((answers) => ({ ...answers, [questionIndex]: optionIndex }));
+                            setQuizError('');
+                          }}
+                          style={{ marginTop: '3px', accentColor: 'var(--color-emerald)' }}
+                        />
+                        <span style={{ fontWeight: 700, color: isSelected ? 'var(--color-emerald)' : 'var(--color-text-subtle)', width: '20px', flexShrink: 0 }}>
+                          {String.fromCharCode(65 + optionIndex)}.
+                        </span>
+                        <span style={{ fontWeight: isSelected ? 600 : 400, color: 'var(--color-text-main)' }}>
+                          {option}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.88rem', color: 'var(--color-forest)', fontWeight: 600 }}>

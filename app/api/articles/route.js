@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import { getCurrentUser, logAudit } from '@/lib/auth';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 import { articleSchema } from '@/lib/validation';
+import { resolveQuizQuestions } from '@/lib/quiz';
 
 export const runtime = 'nodejs';
 
@@ -75,18 +76,18 @@ export async function POST(request) {
     }
     const validatedData = articleSchema.parse(body);
 
-    const optionsJson = Array.isArray(validatedData.quizOptions)
-      ? JSON.stringify(validatedData.quizOptions)
-      : (typeof validatedData.quizOptions === 'string' ? validatedData.quizOptions : null);
+    const quizQuestions = resolveQuizQuestions(validatedData);
+    const firstQuestion = quizQuestions[0];
+    const optionsJson = firstQuestion?.options ? JSON.stringify(firstQuestion.options) : null;
 
     const res = await query(
       `INSERT INTO articles (
         category_id, author_id, title, slug, introduction, content,
         learning_objectives, practical_exercises, critical_thinking_questions,
         reflection_activity, reading_time_minutes, sort_order, status, cover_image_url, video_url,
-        quiz_question, quiz_options, quiz_correct_index, quiz_explanation
+        quiz_question, quiz_options, quiz_correct_index, quiz_explanation, quiz_questions
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *`,
       [
         validatedData.categoryId,
@@ -104,10 +105,11 @@ export async function POST(request) {
         validatedData.status || 'published',
         validatedData.coverImageUrl || null,
         validatedData.videoUrl || null,
-        validatedData.quizQuestion || null,
+        firstQuestion?.question || validatedData.quizQuestion || null,
         optionsJson,
-        Number.isInteger(validatedData.quizCorrectIndex) ? validatedData.quizCorrectIndex : 0,
-        validatedData.quizExplanation || null,
+        firstQuestion?.correctIndex ?? (Number.isInteger(validatedData.quizCorrectIndex) ? validatedData.quizCorrectIndex : 0),
+        firstQuestion?.explanation || validatedData.quizExplanation || null,
+        quizQuestions.length ? JSON.stringify(quizQuestions) : null,
       ]
     );
 
