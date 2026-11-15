@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { getCurrentUser } from '@/lib/auth';
@@ -273,29 +274,15 @@ export default async function HomePage() {
         </section>
 
         {/* INSPIRATIONAL QUOTE SECTION */}
-        <section style={{ backgroundColor: 'var(--color-white)', borderBottom: '1px solid var(--color-border)', padding: '40px 0' }}>
+        <section className="home-quote-section" style={{ backgroundColor: 'var(--color-white)', borderBottom: '1px solid var(--color-border)', padding: '40px 0' }}>
           <div className="container">
-            <div style={{
-              maxWidth: '820px',
-              margin: '0 auto',
-              textAlign: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '14px'
-            }}>
-              <Quote size={32} style={{ color: 'var(--color-gold)', opacity: 0.8 }} />
-              <blockquote style={{
-                fontFamily: 'var(--font-headings)',
-                fontSize: '1.25rem',
-                fontStyle: 'italic',
-                color: 'var(--color-forest)',
-                lineHeight: 1.5
-              }}>
+            <div className="home-featured-quote">
+              <Quote size={32} aria-hidden="true" />
+              <blockquote>
                 &ldquo;{featuredQuote.quote_text}&rdquo;
               </blockquote>
-              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-emerald)' }}>
-                {featuredQuote.author_name} — <span style={{ fontWeight: 400, color: 'var(--color-text-muted)' }}>{featuredQuote.role_or_context}</span>
+              <div className="home-featured-quote-byline">
+                {featuredQuote.author_name} <span>— {featuredQuote.role_or_context}</span>
               </div>
             </div>
           </div>
@@ -338,24 +325,22 @@ export default async function HomePage() {
               </div>
 
               {/* Vision / Values highlight card */}
-              <div className="card" style={{
-                background: 'linear-gradient(180deg, #FFFFFF 0%, #F8FAF9 100%)',
-                borderColor: 'var(--color-emerald)',
-                borderWidth: '2px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-                  <div className="nav-logo-mark" style={{ width: '40px', height: '40px' }}>V</div>
+              <div className="card home-vision-card">
+                <div className="home-vision-header">
+                  <div className="home-vision-emblem">
+                    <Image src="/intambwe-emblem.png" alt="INTAMBWE emblem" width={48} height={48} />
+                  </div>
                   <div>
-                    <h3 style={{ fontSize: '1.25rem' }}>The INTAMBWE Vision</h3>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--color-emerald)', fontWeight: 600 }}>PURPOSE & CHARACTER</div>
+                    <h3>The INTAMBWE Vision</h3>
+                    <div className="home-vision-kicker">PURPOSE &amp; CHARACTER</div>
                   </div>
                 </div>
-                <p style={{ color: 'var(--color-text-muted)', lineHeight: 1.6, marginBottom: '24px' }}>
+                <p className="home-vision-statement">
                   &ldquo;To empower a generation of confident, responsible, innovative and ethical young leaders capable of transforming their communities and contributing positively to society.&rdquo;
                 </p>
 
-                <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '20px' }}>
-                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-forest)', textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.04em' }}>
+                <div className="home-vision-values">
+                  <div className="home-vision-values-heading">
                     10 Non-Negotiable Core Values
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -372,11 +357,11 @@ export default async function HomePage() {
         </section>
 
         {/* 8 LEADERSHIP PILLARS / EXPLORE CATEGORIES */}
-        <section className="section-padding" style={{ backgroundColor: 'var(--color-white)', borderTop: '1px solid var(--color-border)' }}>
+        <section className="section-padding home-curriculum-section" style={{ backgroundColor: 'var(--color-white)', borderTop: '1px solid var(--color-border)' }}>
           <div className="container">
-            <div style={{ textAlign: 'center', maxWidth: '720px', margin: '0 auto 50px auto' }}>
+            <div className="home-curriculum-heading">
               <span className="badge badge-emerald" style={{ marginBottom: '12px' }}>Curriculum & Categories</span>
-              <h2 style={{ fontSize: '2.2rem', marginBottom: '16px' }}>Build leadership, one skill at a time</h2>
+              <h2>Build leadership, one skill at a time</h2>
               <p style={{ color: 'var(--color-text-muted)' }}>
                 Choose a topic, explore practical lessons, and put new ideas into action in your school and community.
               </p>
@@ -631,7 +616,7 @@ export default async function HomePage() {
         </section>
 
         {/* FEATURED ARTICLES SECTION */}
-        <section className="section-padding" style={{ backgroundColor: 'var(--color-white)', borderTop: '1px solid var(--color-border)' }}>
+        <section className="section-padding home-featured-articles" style={{ backgroundColor: 'var(--color-white)', borderTop: '1px solid var(--color-border)' }}>
           <div className="container">
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '40px', gap: '20px' }}>
               <div>
