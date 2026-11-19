@@ -20,7 +20,6 @@ import {
   Video
 } from 'lucide-react';
 import ReflectionSubmitBox from './ReflectionSubmitBox';
-import MarkCompletedButton from './MarkCompletedButton';
 import LessonProgressBox from '@/components/LessonProgressBox';
 import { getVideoEmbedUrl } from '@/lib/video-embed';
 
@@ -108,7 +107,14 @@ export default async function ArticleDetailPage({ params }) {
     if (nextRes.rows.length > 0) nextLesson = nextRes.rows[0];
 
     const certRes = await query(
-      `SELECT * FROM certificates WHERE user_id = $1 AND category_id = $2`,
+      `SELECT c.*
+       FROM certificates c
+       WHERE c.user_id = $1 AND c.category_id = $2
+         AND EXISTS (
+           SELECT 1
+           FROM course_final_test_attempts t
+           WHERE t.user_id = c.user_id AND t.category_id = c.category_id AND t.passed = true
+         )`,
       [currentUser.id, article.category_id]
     );
     if (certRes.rows.length > 0) cert = certRes.rows[0];
@@ -183,13 +189,7 @@ export default async function ArticleDetailPage({ params }) {
                 </div>
               </div>
 
-              {currentUser && (
-                <MarkCompletedButton 
-                  articleId={article.id} 
-                  initialCompleted={isCompleted} 
-                  isLoggedIn={true} 
-                />
-              )}
+
             </div>
           </div>
         </section>
@@ -439,13 +439,13 @@ export default async function ArticleDetailPage({ params }) {
                     </div>
                     {courseStats.allCompleted && (
                       <div style={{ padding: '8px 10px', backgroundColor: 'var(--color-success-soft)', borderRadius: '6px', fontSize: '0.78rem', color: 'var(--color-forest)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>🏆</span> Course Completed!
+                        <span>✓</span> All lessons complete · final test required
                       </div>
                     )}
                   </div>
                 ) : (
                   <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', margin: 0 }}>
-                    Sign in to track completed lessons and claim your course certificate.
+                    Sign in to track lessons and take the final test required for a course certificate.
                   </p>
                 )}
               </div>

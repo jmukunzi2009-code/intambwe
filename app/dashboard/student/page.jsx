@@ -22,7 +22,6 @@ import {
 } from 'lucide-react';
 import StudentJournalManager from './StudentJournalManager';
 import StudentChallengeSubmit from './StudentChallengeSubmit';
-import CourseCertificateButton from './CourseCertificateButton';
 
 export const metadata = {
   title: 'Student Leadership Portal | INTAMBWE',
@@ -76,6 +75,14 @@ export default async function StudentDashboardPage() {
      LEFT JOIN meetings m ON c.meeting_id = m.id
      LEFT JOIN articles a ON c.article_id = a.id
      WHERE c.user_id = $1
+       AND (
+         c.certificate_kind IS DISTINCT FROM 'course'
+         OR EXISTS (
+           SELECT 1
+           FROM course_final_test_attempts t
+           WHERE t.user_id = c.user_id AND t.category_id = c.category_id AND t.passed = true
+         )
+       )
      ORDER BY c.issue_date DESC`,
     [user.id]
   );
@@ -83,10 +90,9 @@ export default async function StudentDashboardPage() {
   // 5. Fetch learning progress
   const [completedLessonsRes, totalLessonsRes] = await Promise.all([
     query(
-      `SELECT p.article_id, p.completed_at, a.title, a.slug, c.certificate_code
+      `SELECT p.article_id, p.completed_at, a.title, a.slug, a.category_id
        FROM student_learning_progress p
        JOIN articles a ON a.id = p.article_id AND a.status = 'published'
-       LEFT JOIN certificates c ON c.user_id = p.user_id AND c.article_id = p.article_id
        WHERE p.user_id = $1
        ORDER BY p.completed_at DESC`,
       [user.id]
@@ -118,7 +124,12 @@ export default async function StudentDashboardPage() {
      JOIN article_categories ac ON ce.category_id = ac.id
      LEFT JOIN articles a ON a.category_id = ac.id AND a.status = 'published'
      LEFT JOIN student_learning_progress slp ON slp.article_id = a.id AND slp.user_id = $1
-     LEFT JOIN certificates cert ON cert.user_id = $1 AND cert.category_id = ac.id
+     LEFT JOIN certificates cert
+       ON cert.user_id = $1 AND cert.category_id = ac.id
+       AND EXISTS (
+         SELECT 1 FROM course_final_test_attempts t
+         WHERE t.user_id = cert.user_id AND t.category_id = cert.category_id AND t.passed = true
+       )
      WHERE ce.user_id = $1
      GROUP BY ce.enrolled_at, ac.id, cert.certificate_code
      ORDER BY ce.enrolled_at DESC`,
@@ -267,7 +278,8 @@ export default async function StudentDashboardPage() {
                       const total = Number(course.total_lessons) || 0;
                       const completed = Number(course.completed_lessons) || 0;
                       const percent = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
-                      const isFinished = total > 0 && completed >= total;
+                      const allLessonsDone = total > 0 && completed >= total;
+                      const isFinished = allLessonsDone && Boolean(course.certificate_code);
 
                       return (
                         <div
@@ -285,7 +297,7 @@ export default async function StudentDashboardPage() {
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
                             <div>
                               <span className={`badge ${isFinished ? 'badge-emerald' : 'badge-gold'}`} style={{ marginBottom: '6px' }}>
-                                {isFinished ? '✓ Course Completed' : `In Progress · ${percent}%`}
+                                {isFinished ? '✓ Course completed' : allLessonsDone ? 'Lessons complete · final test pending' : `In Progress · ${percent}%`}
                               </span>
                               <h4 style={{ fontSize: '1.15rem', color: 'var(--color-forest)' }}>
                                 <Link href={`/courses/${course.category_id}`}>
@@ -324,7 +336,7 @@ export default async function StudentDashboardPage() {
                           {/* Action row */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', paddingTop: '8px', borderTop: '1px solid var(--color-border-light)' }}>
                             <Link href={`/courses/${course.category_id}`} className="btn btn-emerald btn-sm">
-                              {isFinished ? 'Review Lessons' : 'Continue Studying'} <ArrowRight size={14} />
+                              {isFinished ? 'Review course' : allLessonsDone ? 'Take final test' : 'Continue studying'} <ArrowRight size={14} />
                             </Link>
 
                             {isFinished && course.certificate_code && (
@@ -489,10 +501,10 @@ export default async function StudentDashboardPage() {
 
               <div className="card">
                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '8px' }}>
-                  <Award size={20} style={{ color: 'var(--color-gold)' }} /> Certificates for online lessons
+                  <Award size={20} style={{ color: 'var(--color-gold)' }} /> Course certificates
                 </h3>
                 <p style={{ color: 'var(--color-text-muted)', fontSize: '0.88rem', marginBottom: '16px' }}>
-                  Complete a leadership lesson to unlock its verifiable course certificate.
+                  Finish every lesson and pass the course final test with at least 50% to earn a certificate.
                 </p>
                 {completedLessonsRes.rows.length === 0 ? (
                   <Link href="/explore" className="btn btn-outline btn-sm">Explore lessons</Link>
@@ -502,9 +514,13 @@ export default async function StudentDashboardPage() {
                       <div key={lesson.article_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap', padding: '12px 14px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
                         <div>
                           <Link href={`/explore/${lesson.slug}`} style={{ fontWeight: 700, color: 'var(--color-forest)' }}>{lesson.title}</Link>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--color-emerald)' }}>Lesson completed</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--color-emerald)' }}>Lesson completed · final course test required</div>
                         </div>
-                        <CourseCertificateButton articleId={lesson.article_id} certificateCode={lesson.certificate_code} />
+                        {lesson.category_id && (
+                          <Link href={`/courses/${lesson.category_id}`} className="btn btn-outline btn-sm">
+                            View course and final test
+                          </Link>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { ArrowLeft, ArrowRight, Award, BookOpen, CheckCircle2, Clock, Lock, Play, Sparkles } from 'lucide-react';
 import StartCourseButton from './StartCourseButton';
+import CourseFinalTest from './CourseFinalTest';
 import styles from './course.module.css';
 
 export const revalidate = 0;
@@ -74,11 +75,21 @@ export default async function CourseDetailPage({ params }) {
       query(
         `SELECT p.article_id
          FROM student_learning_progress p
-         JOIN articles a ON a.category_id = $2 AND a.status = 'published'
+         JOIN articles a ON a.id = p.article_id AND a.category_id = $2 AND a.status = 'published'
          WHERE p.user_id = $1`,
         [currentUser.id, id]
       ),
-      query('SELECT * FROM certificates WHERE user_id = $1 AND category_id = $2', [currentUser.id, id]),
+      query(
+        `SELECT c.*
+         FROM certificates c
+         WHERE c.user_id = $1 AND c.category_id = $2
+           AND EXISTS (
+             SELECT 1
+             FROM course_final_test_attempts t
+             WHERE t.user_id = c.user_id AND t.category_id = c.category_id AND t.passed = true
+           )`,
+        [currentUser.id, id]
+      ),
     ]);
     enrolled = enrollmentResult.rows.length > 0;
     completedIds = new Set(completedResult.rows.map((row) => Number(row.article_id)));
@@ -88,6 +99,33 @@ export default async function CourseDetailPage({ params }) {
   const lessonCount = lessonsResult.rows.length;
   const completedCount = completedIds.size;
   const progress = lessonCount ? Math.round((completedCount / lessonCount) * 100) : 0;
+  const [finalTestResult, latestAttemptResult] = await Promise.all([
+    query(
+      `SELECT id, question, options
+       FROM course_final_test_questions
+       WHERE category_id = $1
+       ORDER BY sort_order ASC, id ASC`,
+      [id]
+    ),
+    currentUser?.role === 'student'
+      ? query(
+        `SELECT score, total_questions AS total,
+                ROUND(score::numeric * 100 / total_questions)::int AS percent,
+                passed, submission_reason AS "submissionReason"
+         FROM course_final_test_attempts
+         WHERE user_id = $1 AND category_id = $2
+         ORDER BY submitted_at DESC, id DESC
+         LIMIT 1`,
+        [currentUser.id, id]
+      )
+      : Promise.resolve({ rows: [] }),
+  ]);
+  const finalTestQuestions = finalTestResult.rows.map((question) => ({
+    ...question,
+    options: Array.isArray(question.options) ? question.options : [],
+  }));
+  const latestAttempt = latestAttemptResult.rows[0] || null;
+  const lessonsComplete = lessonCount > 0 && completedCount >= lessonCount;
   const canStudy = enrolled || ['admin', 'super_admin', 'content_editor'].includes(currentUser?.role);
   const isVideoFile = /\.(mp4|webm|ogg)(\?.*)?$/i.test(course.video_url || '') || (course.video_url || '').startsWith('/');
 
@@ -98,12 +136,12 @@ export default async function CourseDetailPage({ params }) {
         <section className={styles.hero}>
           <div className={`container ${styles.heroInner}`}>
             <Link href="/explore" className={styles.backLink}><ArrowLeft size={16} /> All leadership courses</Link>
-            <span className="badge badge-gold">{lessonCount} guided {lessonCount === 1 ? 'lesson' : 'lessons'}</span>
+            <span className={`badge badge-gold ${styles.courseCountBadge}`}>{lessonCount} guided {lessonCount === 1 ? 'lesson' : 'lessons'}</span>
             <h1>{course.name}</h1>
             <p>{course.description || 'A step-by-step leadership course. Explore the lessons and build practical skills at your own pace.'}</p>
             <div className={styles.heroActions}>
               {currentUser?.role === 'student' && enrolled ? (
-                <span className="badge badge-emerald"><CheckCircle2 size={15} /> Course started · {completedCount}/{lessonCount} lessons complete</span>
+                <span className={`badge ${styles.courseStatusBadge}`}><CheckCircle2 size={15} /> Course started · {completedCount}/{lessonCount} lessons complete</span>
               ) : currentUser?.role === 'student' ? (
                 <StartCourseButton courseId={course.id} />
               ) : !currentUser ? (
@@ -112,7 +150,7 @@ export default async function CourseDetailPage({ params }) {
                   <Link className="btn btn-outline-white" href={`/register?redirect=/courses/${course.id}`}>Create student account</Link>
                 </div>
               ) : (
-                <span className="badge badge-emerald"><BookOpen size={15} /> Staff course preview</span>
+                <span className={`badge ${styles.courseStatusBadge}`}><BookOpen size={15} /> Staff course preview</span>
               )}
             </div>
           </div>
@@ -121,18 +159,18 @@ export default async function CourseDetailPage({ params }) {
         <div className={`container ${styles.content}`}>
           <div className={styles.courseLayout}>
             <section className={styles.lessonSection}>
-              {canStudy && completedCount > 0 && completedCount >= lessonCount && lessonCount > 0 && (
+              {courseCert && (
                 <div style={{ backgroundColor: 'var(--color-forest)', color: 'white', padding: '24px 28px', borderRadius: '14px', marginBottom: '28px', borderLeft: '4px solid var(--color-gold)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-gold)', fontWeight: 700, fontSize: '0.85rem', marginBottom: '4px' }}>
                       <Award size={18} />
-                      <span>COURSE COMPLETED · 100% MASTERY</span>
+                      <span>COURSE COMPLETED · FINAL TEST PASSED</span>
                     </div>
                     <h3 style={{ color: 'white', fontSize: '1.3rem', margin: 0 }}>
-                      Congratulations! You have completed all lessons in this course.
+                      Congratulations! You have completed the course and passed the final test.
                     </h3>
                     <p style={{ color: '#d1dbd5', fontSize: '0.9rem', margin: '4px 0 0 0' }}>
-                      Your leadership certificate has been unlocked and verified.
+                      Your official leadership certificate is ready.
                     </p>
                   </div>
                   <Link 
@@ -185,7 +223,11 @@ export default async function CourseDetailPage({ params }) {
                     );
 
                     return (
-                      <li key={lesson.id} className={`${styles.lessonItem} ${complete ? styles.lessonComplete : ''}`}>
+                      <li
+                        key={lesson.id}
+                        className={`${styles.lessonItem} ${complete ? styles.lessonComplete : ''}`}
+                        style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}
+                      >
                         {canStudy ? (
                           <Link href={`/explore/${lesson.slug}`} className={styles.lessonLink}>{lessonContent}</Link>
                         ) : (
@@ -195,6 +237,19 @@ export default async function CourseDetailPage({ params }) {
                     );
                   })}
                 </ol>
+              )}
+
+              {currentUser?.role === 'student' && enrolled && (
+                <CourseFinalTest
+                  courseId={course.id}
+                  courseName={course.name}
+                  questions={finalTestQuestions}
+                  lessonsComplete={lessonsComplete}
+                  completedLessons={completedCount}
+                  totalLessons={lessonCount}
+                  initialAttempt={latestAttempt}
+                  certificate={courseCert}
+                />
               )}
             </section>
 

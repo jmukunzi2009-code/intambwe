@@ -1,10 +1,12 @@
 import AboutAdminClient from './AboutAdminClient';
+import AboutTeamCards from './AboutTeamCards';
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import MediaAsset from '@/components/MediaAsset';
+import ScrollReveal from '@/components/ScrollReveal';
 import { inferMediaType } from '@/lib/media-type';
 import { getCurrentUser } from '@/lib/auth';
 import { query } from '@/lib/db';
@@ -64,6 +66,7 @@ export default async function AboutPage() {
       <Navbar currentUser={currentUser} />
 
       <main className="about-page">
+        <ScrollReveal />
         {/* HERO */}
         <section className="about-hero">
           <div className="container about-hero-inner">
@@ -85,7 +88,7 @@ export default async function AboutPage() {
         </section>
 
         {/* FOUNDER & STORY */}
-        <section className="section-padding about-story-section">
+        <section className="section-padding about-story-section" data-reveal>
           <div className="container">
             <div className="about-story-grid">
               <article className="about-founder-card">
@@ -157,7 +160,7 @@ export default async function AboutPage() {
         </section>
 
         {/* VISION & MISSION DUAL CARDS */}
-        <section className="section-padding about-purpose-section">
+        <section className="section-padding about-purpose-section" data-reveal>
           <div className="container">
             <div className="about-purpose-grid">
               <article className="about-purpose-card about-purpose-vision">
@@ -184,7 +187,7 @@ export default async function AboutPage() {
           </div>
         </section>
 
-        <section id="our-team" className="section-padding about-team-section">
+        <section id="our-team" className="section-padding about-team-section" data-reveal>
           <div className="container">
             <div className="about-team-heading" style={{ position: 'relative' }}>
               <span className="badge badge-gold about-team-badge">
@@ -205,32 +208,11 @@ export default async function AboutPage() {
               )}
             </div>
 
-            <div className="about-team-grid about-team-profile-grid">
-              {teamMembers.length > 0 ? teamMembers.map((member) => (
-                <article className="card about-team-profile" key={member.id}>
-                  <div className="about-team-profile-media">
-                    <MediaAsset
-                      url={member.image_url || '/about/profile.png'}
-                      mediaType={member.media_type || inferMediaType(member.image_url)}
-                      title={member.name}
-                      objectPosition="center 28%"
-                    />
-                    <div className="about-team-profile-role-wrap">
-                      <span className="badge badge-gold about-team-profile-role">
-                        {member.role}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="about-team-profile-body">
-                    <h3>
-                      {member.name}
-                    </h3>
-                    <p>
-                      {member.bio}
-                    </p>
-                  </div>
-                </article>
-              )) : teamAreas.map(({ icon: Icon, name, desc, color }, index) => (
+            {teamMembers.length > 0 ? (
+              <AboutTeamCards members={teamMembers} />
+            ) : (
+              <div className="about-team-grid">
+                {teamAreas.map(({ icon: Icon, name, desc, color }, index) => (
                 <article className={`about-team-card about-team-${color}`} key={name}>
                   <div className="about-team-card-top">
                     <span className="about-team-icon"><Icon size={23} /></span>
@@ -240,12 +222,13 @@ export default async function AboutPage() {
                   <p>{desc}</p>
                   <span className="about-team-accent" aria-hidden="true" />
                 </article>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
-        <section className="section-padding about-community-section">
+        <section className="section-padding about-community-section" data-reveal>
           <div className="container">
             <div className="about-community-header" style={{ position: 'relative' }}>
               <span className="badge badge-gold">Community moments</span>
@@ -308,7 +291,7 @@ export default async function AboutPage() {
         </section>
 
         {/* 10 CORE VALUES GRID */}
-        <section className="section-padding about-values-section">
+        <section className="section-padding about-values-section" data-reveal>
           <div className="container">
             <div className="about-values-heading">
               <span className="badge badge-emerald">Guiding compass</span>
@@ -335,7 +318,7 @@ export default async function AboutPage() {
         </section>
 
         {/* SCHOOL PARTNERSHIP CTA */}
-        <section className="about-partnership">
+        <section className="about-partnership" data-reveal>
           <div className="container about-partnership-inner">
             <span className="badge badge-gold">Take the next step</span>
             <h2>

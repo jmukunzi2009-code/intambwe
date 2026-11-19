@@ -13,6 +13,7 @@
 The platform provides:
 - **Public Leadership Portal:** Curated curriculum across 8 core pillars, upcoming summits, conference archives, and educational handbooks.
 - **Student Leadership Portal:** Private reflection journals, conference seat registration, community challenges, and verified certificates.
+- **Course Completion:** Students complete all published lessons, then pass the staff-authored course final test with at least 50% to earn a certificate. Leaving the test tab or window automatically submits the current answers.
 - **Executive Administration Console:** User management, conference scheduling, agenda building, real-time physical attendance tracking, content publishing, and security audit trails.
 - **Neon PostgreSQL Backend:** High-performance, relational database with repeatable versioned SQL migrations and strict parameterization.
 

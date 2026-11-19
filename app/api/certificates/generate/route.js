@@ -12,19 +12,22 @@ export async function POST(request) {
     }
 
     const { userId, meetingId, articleId, customTitle } = await request.json();
-    const isStudentCourseCertificate = user.role === 'student' && Boolean(articleId);
-
-    if (!isStudentCourseCertificate && !hasPermission(user.role, PERMISSIONS.CERTIFICATES_MANAGE)) {
+    if (!hasPermission(user.role, PERMISSIONS.CERTIFICATES_MANAGE)) {
       return NextResponse.json({ error: 'Unauthorized to generate certificates.' }, { status: 403 });
     }
 
-    if (meetingId && articleId) {
-      return NextResponse.json({ error: 'Choose a conference certificate or a course certificate, not both.' }, { status: 400 });
+    if (articleId) {
+      return NextResponse.json({
+        error: 'Course certificates are awarded automatically only after completing every lesson and passing the course final test.',
+      }, { status: 400 });
     }
 
-    const recipientId = isStudentCourseCertificate ? user.id : userId;
+    const recipientId = userId;
     if (!recipientId) {
       return NextResponse.json({ error: 'User ID is required.' }, { status: 400 });
+    }
+    if (!meetingId) {
+      return NextResponse.json({ error: 'A conference certificate is required.' }, { status: 400 });
     }
 
     // Fetch user and meeting details
@@ -35,7 +38,6 @@ export async function POST(request) {
     const student = userRes.rows[0];
 
     let meetingTitle = customTitle || 'Exemplary Youth Leadership & Civic Engagement';
-    let courseId = null;
     if (meetingId) {
       const attendance = await query(
         `SELECT m.title
@@ -48,29 +50,13 @@ export async function POST(request) {
         return NextResponse.json({ error: 'A conference certificate can only be issued to a student whose attendance is marked present.' }, { status: 403 });
       }
       meetingTitle = attendance.rows[0].title;
-    } else if (articleId) {
-      const completion = await query(
-        `SELECT a.id, a.title
-         FROM student_learning_progress p
-         JOIN articles a ON a.id = p.article_id
-         WHERE p.user_id = $1 AND p.article_id = $2 AND a.status = 'published'`,
-        [recipientId, articleId]
-      );
-      if (completion.rows.length === 0) {
-        return NextResponse.json({ error: 'Complete this published lesson before requesting its certificate.' }, { status: 403 });
-      }
-      courseId = completion.rows[0].id;
-      meetingTitle = customTitle || `Leadership learning certificate: ${completion.rows[0].title}`;
     } else {
-      return NextResponse.json({ error: 'A conference or completed lesson is required.' }, { status: 400 });
+      return NextResponse.json({ error: 'A conference certificate is required.' }, { status: 400 });
     }
 
-    // Check if certificate already issued for this meeting & user
     const existing = await query(
-      meetingId
-        ? 'SELECT * FROM certificates WHERE user_id = $1 AND meeting_id = $2'
-        : 'SELECT * FROM certificates WHERE user_id = $1 AND article_id = $2',
-      [recipientId, meetingId || courseId]
+      'SELECT * FROM certificates WHERE user_id = $1 AND meeting_id = $2',
+      [recipientId, meetingId]
     );
     if (existing.rows.length > 0) {
       return NextResponse.json({
@@ -87,10 +73,10 @@ export async function POST(request) {
     const verificationUrl = `/certificates/${certCode}`;
 
     const res = await query(
-      `INSERT INTO certificates (user_id, meeting_id, article_id, certificate_code, title, issue_date, verification_url)
-       VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, $6)
+      `INSERT INTO certificates (user_id, meeting_id, certificate_code, title, issue_date, verification_url)
+       VALUES ($1, $2, $3, $4, CURRENT_DATE, $5)
        RETURNING *`,
-      [recipientId, meetingId || null, courseId, certCode, meetingTitle, verificationUrl]
+      [recipientId, meetingId, certCode, meetingTitle, verificationUrl]
     );
 
     const newCert = res.rows[0];
@@ -100,7 +86,7 @@ export async function POST(request) {
       action: 'CERTIFICATE_GENERATED',
       entityType: 'certificates',
       entityId: newCert.id,
-      details: { recipientEmail: student.email, certCode, meetingTitle, meetingId: meetingId || null, articleId: courseId },
+      details: { recipientEmail: student.email, certCode, meetingTitle, meetingId },
     });
 
     return NextResponse.json({

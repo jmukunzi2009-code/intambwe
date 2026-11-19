@@ -1,15 +1,21 @@
 .page {
   min-height: 100vh;
   padding-bottom: 80px;
-  background: #f5f8f6;
+  background: var(--color-bg-soft);
 }
 
 .hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   padding: 58px 0 52px;
   color: #fff;
+  background-color: #0b1725;
   background:
-    radial-gradient(ellipse at 86% 12%, rgba(212, 167, 44, 0.2), transparent 34%),
-    linear-gradient(120deg, #102b21, #1d5b41);
+    radial-gradient(ellipse at 84% 8%, rgba(75, 130, 164, 0.3), transparent 36%),
+    radial-gradient(ellipse at 8% 100%, rgba(201, 155, 67, 0.12), transparent 42%),
+    linear-gradient(120deg, #0b1725 0%, #142438 55%, #1d3448 100%);
+  animation: course-hero-arrive 650ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .heroInner {
@@ -21,8 +27,14 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 28px;
-  color: #d7e5dc;
+  color: #d8e6f0;
   font-size: 0.9rem;
+  transition: color 180ms ease, gap 180ms ease;
+}
+
+.backLink:hover {
+  gap: 12px;
+  color: #fff;
 }
 
 .hero h1 {
@@ -34,7 +46,7 @@
 
 .hero p {
   max-width: 720px;
-  color: #d7e5dc;
+  color: #d8e6f0;
   font-size: 1.05rem;
   line-height: 1.75;
 }
@@ -51,6 +63,22 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.courseStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border: 1px solid rgba(201, 219, 233, 0.4);
+  background: #dceaf4;
+  color: #173047;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.courseCountBadge {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 .content {
@@ -74,7 +102,7 @@
   padding: 30px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: #fff;
+  background: var(--surface-primary);
   box-shadow: var(--shadow-sm);
 }
 
@@ -129,19 +157,20 @@
   min-width: 0;
   border: 1px solid var(--color-border-light);
   border-radius: var(--radius-md);
-  background: #fbfdfb;
+  background: var(--surface-secondary);
   transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  animation: course-lesson-enter 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .lessonItem:hover {
   transform: translateY(-2px);
-  border-color: rgba(22, 122, 80, 0.45);
+  border-color: #6b8ca6;
   box-shadow: var(--shadow-sm);
 }
 
 .lessonComplete {
-  border-color: rgba(22, 122, 80, 0.35);
-  background: #f1f8f3;
+  border-color: rgba(20, 36, 56, 0.24);
+  background: var(--surface-highlight);
 }
 
 .lessonLink,
@@ -161,8 +190,8 @@
   flex: 0 0 40px;
   place-items: center;
   border-radius: 50%;
-  background: #e8f2eb;
-  color: var(--color-emerald);
+  background: #e8f0f6;
+  color: var(--color-forest);
   font-weight: 800;
 }
 
@@ -270,7 +299,7 @@
   overflow: hidden;
   padding: 16px;
   border-radius: var(--radius-lg);
-  background: #10251c;
+  background: #0b1725;
 }
 
 .videoCard h3 {
@@ -329,8 +358,69 @@
   animation: course-spin 1s linear infinite;
 }
 
+@keyframes course-lesson-enter {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes course-hero-arrive {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
 @keyframes course-spin {
   to { transform: rotate(360deg); }
+}
+
+:global(html[data-theme="dark"]) .lessonSection {
+  background: var(--surface-primary);
+}
+
+:global(html[data-theme="dark"]) .sectionHeading h2,
+:global(html[data-theme="dark"]) .courseAside h3,
+:global(html[data-theme="dark"]) .lessonCopy strong {
+  color: #edf4f8;
+}
+
+:global(html[data-theme="dark"]) .lessonItem {
+  border-color: #344756;
+  background: #202d38;
+}
+
+:global(html[data-theme="dark"]) .lessonItem:hover {
+  border-color: #6b8ca6;
+}
+
+:global(html[data-theme="dark"]) .lessonComplete {
+  border-color: #47647a;
+  background: #1d3448;
+}
+
+:global(html[data-theme="dark"]) .lessonNumber {
+  background: #304558;
+  color: #d7e8f3;
+}
+
+:global(html[data-theme="dark"]) .lessonArrow {
+  color: #8bd6b6;
+}
+
+:global(html[data-theme="dark"]) .courseStatusBadge {
+  border-color: #506b80;
+  background: #243b50;
+  color: #e4f0f7;
 }
 
 @media (max-width: 900px) {
@@ -374,6 +464,21 @@
     width: 52px;
     height: 46px;
     flex-basis: 52px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero {
+    animation: none;
+  }
+
+  .backLink {
+    transition: none;
+  }
+
+  .lessonItem {
+    animation: none;
+    transition: none;
   }
 
   .lessonCopy > span {

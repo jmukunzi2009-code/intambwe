@@ -15,10 +15,11 @@ export default function ReflectionSubmitBox({ articleTitle, isLoggedIn }) {
     return (
       <div style={{
         padding: '20px',
-        backgroundColor: '#F3F6F4',
+        backgroundColor: 'var(--surface-secondary)',
         borderRadius: 'var(--radius-md)',
         textAlign: 'center',
-        border: '1px dashed var(--color-border)'
+        border: '1px dashed var(--color-border)',
+        color: 'var(--color-text-main)'
       }}>
         <Lock size={24} style={{ color: 'var(--color-emerald)', marginBottom: '8px' }} />
         <h4 style={{ fontSize: '1.05rem', marginBottom: '6px' }}>Want to save this reflection to your Leadership Journal?</h4>

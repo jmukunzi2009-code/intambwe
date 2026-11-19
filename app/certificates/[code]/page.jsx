@@ -27,7 +27,15 @@ export default async function CertificateVerificationPage({ params }) {
      LEFT JOIN meetings m ON c.meeting_id = m.id
      LEFT JOIN articles a ON c.article_id = a.id
      LEFT JOIN article_categories ac ON c.category_id = ac.id
-     WHERE c.certificate_code = $1`,
+     WHERE c.certificate_code = $1
+       AND (
+         c.certificate_kind IS DISTINCT FROM 'course'
+         OR EXISTS (
+           SELECT 1
+           FROM course_final_test_attempts t
+           WHERE t.user_id = c.user_id AND t.category_id = c.category_id AND t.passed = true
+         )
+       )`,
     [code]
   );
 

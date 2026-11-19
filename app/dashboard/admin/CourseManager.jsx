@@ -13,6 +13,10 @@ const EMPTY_COURSE = {
   status: 'published',
 };
 
+function createEmptyFinalQuestion() {
+  return { question: '', options: ['', '', '', ''], correctIndex: 0, explanation: '' };
+}
+
 function toSlug(value) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
@@ -32,14 +36,19 @@ export default function CourseManager({
   const [form, setForm] = useState(EMPTY_COURSE);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [testQuestions, setTestQuestions] = useState([]);
+  const [loadingTest, setLoadingTest] = useState(false);
+  const [testLoadFailed, setTestLoadFailed] = useState(false);
   const [openCourseId, setOpenCourseId] = useState(null);
   const [rosters, setRosters] = useState({});
   const [loadingRosterId, setLoadingRosterId] = useState(null);
   const [rosterErrors, setRosterErrors] = useState({});
 
-  const openForm = (course = null) => {
+  const openForm = async (course = null) => {
     setEditingCourse(course);
     setFormOpen(true);
+    setTestQuestions([]);
+    setTestLoadFailed(false);
     setForm(course ? {
       name: course.name,
       slug: course.slug,
@@ -49,6 +58,25 @@ export default function CourseManager({
       status: course.status || 'published',
     } : EMPTY_COURSE);
     setError('');
+    if (!course) return;
+
+    setLoadingTest(true);
+    try {
+      const response = await fetch(`/api/courses/${course.id}/test`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not load this course final test.');
+      setTestQuestions((data.questions || []).map((question) => ({
+        question: question.question,
+        options: question.options,
+        correctIndex: question.correctIndex,
+        explanation: question.explanation || '',
+      })));
+    } catch (requestError) {
+      setTestLoadFailed(true);
+      setError(requestError.message);
+    } finally {
+      setLoadingTest(false);
+    }
   };
 
   const saveCourse = async (event) => {
@@ -63,10 +91,24 @@ export default function CourseManager({
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not save this course.');
+
+      setEditingCourse(data.course);
       if (onCourseSaved) onCourseSaved(data.course);
+
+      const testResponse = await fetch(`/api/courses/${data.course.id}/test`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questions: testQuestions }),
+      });
+      const testData = await testResponse.json();
+      if (!testResponse.ok) {
+        throw new Error(`Course details were saved, but the final test was not: ${testData.error || 'Please try again.'}`);
+      }
+
       setFormOpen(false);
       setEditingCourse(null);
       setForm(EMPTY_COURSE);
+      setTestQuestions([]);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -446,6 +488,95 @@ export default function CourseManager({
                 />
               </div>
 
+              <section style={{ margin: '22px 0', padding: '18px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--surface-secondary)' }}>
+                <h3 style={{ color: 'var(--color-forest)', fontSize: '1rem', marginBottom: '6px' }}>General Final Test</h3>
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.83rem', marginBottom: '14px' }}>
+                  Students must finish every published lesson and pass this test with at least 50% to earn a course certificate. Leave it empty while the test is not ready.
+                </p>
+                {loadingTest ? (
+                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Loading test questions…</p>
+                ) : (
+                  <>
+                    {testQuestions.map((question, questionIndex) => (
+                      <fieldset key={questionIndex} style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: '14px', marginBottom: '12px', background: 'var(--surface-primary)' }}>
+                        <legend style={{ padding: '0 6px', color: 'var(--color-forest)', fontWeight: 700, fontSize: '0.85rem' }}>
+                          Question {questionIndex + 1}
+                        </legend>
+                        <textarea
+                          className="form-textarea"
+                          rows={2}
+                          maxLength={1000}
+                          required
+                          aria-label={`Final test question ${questionIndex + 1}`}
+                          placeholder="Write the question"
+                          value={question.question}
+                          onChange={(event) => setTestQuestions((current) => current.map((item, index) => (
+                            index === questionIndex ? { ...item, question: event.target.value } : item
+                          )))}
+                        />
+                        <div style={{ display: 'grid', gap: '8px', marginTop: '10px' }}>
+                          {question.options.map((option, optionIndex) => (
+                            <div key={optionIndex} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <input
+                                type="radio"
+                                name={`final-test-correct-${questionIndex}`}
+                                aria-label={`Mark option ${optionIndex + 1} as correct for question ${questionIndex + 1}`}
+                                checked={question.correctIndex === optionIndex}
+                                onChange={() => setTestQuestions((current) => current.map((item, index) => (
+                                  index === questionIndex ? { ...item, correctIndex: optionIndex } : item
+                                )))}
+                              />
+                              <input
+                                className="form-input"
+                                required
+                                maxLength={500}
+                                aria-label={`Answer option ${optionIndex + 1} for question ${questionIndex + 1}`}
+                                placeholder={`Answer option ${optionIndex + 1}`}
+                                value={option}
+                                onChange={(event) => setTestQuestions((current) => current.map((item, index) => {
+                                  if (index !== questionIndex) return item;
+                                  const options = [...item.options];
+                                  options[optionIndex] = event.target.value;
+                                  return { ...item, options };
+                                }))}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <label className="form-label" style={{ display: 'block', marginTop: '10px' }}>
+                          Explanation after a failed attempt (optional)
+                        </label>
+                        <textarea
+                          className="form-textarea"
+                          rows={2}
+                          maxLength={1000}
+                          value={question.explanation}
+                          onChange={(event) => setTestQuestions((current) => current.map((item, index) => (
+                            index === questionIndex ? { ...item, explanation: event.target.value } : item
+                          )))}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-sm"
+                          style={{ marginTop: '10px', color: 'var(--color-danger)' }}
+                          onClick={() => setTestQuestions((current) => current.filter((_, index) => index !== questionIndex))}
+                        >
+                          <Trash2 size={13} /> Remove question
+                        </button>
+                      </fieldset>
+                    ))}
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      onClick={() => setTestQuestions((current) => [...current, createEmptyFinalQuestion()])}
+                      disabled={testQuestions.length >= 50}
+                    >
+                      <Plus size={14} /> Add final-test question
+                    </button>
+                  </>
+                )}
+              </section>
+
               <div className="form-group">
                 <label className="form-label">Course Publication Status</label>
                 <select
@@ -463,7 +594,7 @@ export default function CourseManager({
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '24px' }}>
                 <button type="button" className="btn btn-outline" onClick={() => setFormOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-emerald" disabled={saving}>
+                <button type="submit" className="btn btn-emerald" disabled={saving || loadingTest || testLoadFailed}>
                   {saving ? 'Saving…' : editingCourse ? 'Save Changes' : 'Create Course'}
                 </button>
               </div>

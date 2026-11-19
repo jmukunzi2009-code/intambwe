@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import ScrollReveal from '@/components/ScrollReveal';
 import { getCurrentUser } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { 
@@ -135,6 +136,7 @@ export default async function HomePage() {
       <Navbar currentUser={currentUser} />
 
       <main>
+        <ScrollReveal />
         {/* HERO SECTION */}
         <section className="home-hero">
           <video className="home-hero-video" autoPlay muted loop playsInline aria-hidden="true" poster="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=1800&q=75">
@@ -274,7 +276,7 @@ export default async function HomePage() {
         </section>
 
         {/* INSPIRATIONAL QUOTE SECTION */}
-        <section className="home-quote-section" style={{ backgroundColor: 'var(--color-white)', borderBottom: '1px solid var(--color-border)', padding: '40px 0' }}>
+        <section className="home-quote-section" data-reveal style={{ backgroundColor: 'var(--color-white)', borderBottom: '1px solid var(--color-border)', padding: '40px 0' }}>
           <div className="container">
             <div className="home-featured-quote">
               <Quote size={32} aria-hidden="true" />
@@ -289,7 +291,7 @@ export default async function HomePage() {
         </section>
 
         {/* ABOUT & MISSION SECTION */}
-        <section className="section-padding">
+        <section className="section-padding" data-reveal>
           <div className="container">
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '50px', alignItems: 'center' }}>
               <div>
@@ -357,7 +359,7 @@ export default async function HomePage() {
         </section>
 
         {/* 8 LEADERSHIP PILLARS / EXPLORE CATEGORIES */}
-        <section className="section-padding home-curriculum-section" style={{ backgroundColor: 'var(--color-white)', borderTop: '1px solid var(--color-border)' }}>
+        <section className="section-padding home-curriculum-section" data-reveal style={{ backgroundColor: 'var(--color-white)', borderTop: '1px solid var(--color-border)' }}>
           <div className="container">
             <div className="home-curriculum-heading">
               <span className="badge badge-emerald" style={{ marginBottom: '12px' }}>Curriculum & Categories</span>
@@ -424,7 +426,7 @@ export default async function HomePage() {
         </section>
 
         {/* LEADERSHIP MEDIA */}
-        <section className="section-padding leadership-media">
+        <section className="section-padding leadership-media" data-reveal>
           <div className="container">
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '20px', marginBottom: '32px' }}>
               <div>
@@ -490,7 +492,7 @@ export default async function HomePage() {
         </section>
 
         {/* CONFERENCES SECTION (UPCOMING & PAST) */}
-        <section className="section-padding">
+        <section className="section-padding" data-reveal>
           <div className="container">
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '40px', gap: '20px' }}>
               <div>
@@ -616,7 +618,7 @@ export default async function HomePage() {
         </section>
 
         {/* FEATURED ARTICLES SECTION */}
-        <section className="section-padding home-featured-articles" style={{ backgroundColor: 'var(--color-white)', borderTop: '1px solid var(--color-border)' }}>
+        <section className="section-padding home-featured-articles" data-reveal style={{ backgroundColor: 'var(--color-white)', borderTop: '1px solid var(--color-border)' }}>
           <div className="container">
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '40px', gap: '20px' }}>
               <div>
@@ -670,7 +672,7 @@ export default async function HomePage() {
         </section>
 
         {/* COMMUNITY CALL TO ACTION */}
-        <section style={{
+        <section data-reveal style={{
           backgroundColor: 'var(--color-forest)',
           color: 'var(--color-white)',
           padding: '80px 0',

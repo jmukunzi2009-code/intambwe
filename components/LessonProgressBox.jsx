@@ -73,7 +73,7 @@ export default function LessonProgressBox({
 
   if (!isLoggedIn) {
     return (
-      <div className="card" style={{ marginTop: '36px', padding: '32px', backgroundColor: '#F8FAF9', border: '1px dashed var(--color-border)', textAlign: 'center' }}>
+      <div className="card" style={{ marginTop: '36px', padding: '32px', backgroundColor: 'var(--surface-secondary)', border: '1px dashed var(--color-border)', textAlign: 'center' }}>
         <BookOpen size={28} style={{ color: 'var(--color-emerald)', margin: '0 auto 12px' }} />
         <h3 style={{ fontSize: '1.25rem', color: 'var(--color-forest)', marginBottom: '8px' }}>
           Track Your Leadership Progression
@@ -154,7 +154,7 @@ export default function LessonProgressBox({
         marginBottom: '40px', 
         padding: '36px', 
         borderRadius: '16px',
-        backgroundColor: completed ? '#F3FAF5' : '#FFFFFF',
+        backgroundColor: completed ? 'var(--surface-highlight)' : 'var(--surface-primary)',
         border: `2px solid ${completed ? 'var(--color-emerald)' : 'var(--color-border)'}`,
         boxShadow: 'var(--shadow-md)',
         transition: 'all 0.3s ease'
@@ -198,7 +198,7 @@ export default function LessonProgressBox({
 
       {/* VISUAL PROGRESS BAR */}
       {courseStats && (
-        <div style={{ width: '100%', height: '10px', backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: '6px', overflow: 'hidden', marginBottom: '28px' }}>
+        <div style={{ width: '100%', height: '10px', backgroundColor: 'var(--color-border-light)', borderRadius: '6px', overflow: 'hidden', marginBottom: '28px' }}>
           <div 
             style={{ 
               width: `${Math.min(100, Math.max(5, courseStats.percent || 0))}%`, 
@@ -213,7 +213,7 @@ export default function LessonProgressBox({
 
       {/* KNOWLEDGE CHECK TEST (When not yet completed) */}
       {!completed ? (
-        <div style={{ backgroundColor: '#F9FCFA', padding: '24px', borderRadius: '12px', border: '1px solid var(--color-border-light)', marginBottom: '24px' }}>
+        <div style={{ backgroundColor: 'var(--surface-secondary)', padding: '24px', borderRadius: '12px', border: '1px solid var(--color-border-light)', marginBottom: '24px' }}>
           <h4 style={{ fontSize: '1.05rem', color: 'var(--color-forest)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <HelpCircle size={18} style={{ color: 'var(--color-emerald)' }} />
             <span>Practical Leadership Question</span>
@@ -221,7 +221,7 @@ export default function LessonProgressBox({
           
           <div style={{ display: 'grid', gap: '18px', marginBottom: '20px' }}>
             {questions.map((question, questionIndex) => (
-              <section key={questionIndex} style={{ padding: '16px', borderRadius: '10px', border: '1px solid var(--color-border-light)', background: '#FFFFFF' }}>
+              <section key={questionIndex} style={{ padding: '16px', borderRadius: '10px', border: '1px solid var(--color-border-light)', background: 'var(--surface-primary)' }}>
                 <p style={{ fontSize: '0.95rem', color: 'var(--color-forest)', lineHeight: 1.6, margin: '0 0 12px', fontWeight: 700 }}>
                   {questions.length > 1 && <span style={{ color: 'var(--color-emerald)' }}>Question {questionIndex + 1}. </span>}
                   {question.question}
@@ -239,7 +239,7 @@ export default function LessonProgressBox({
                           padding: '11px 13px',
                           borderRadius: '8px',
                           border: `1px solid ${isSelected ? 'var(--color-emerald)' : 'var(--color-border)'}`,
-                          backgroundColor: isSelected ? '#EBF7F0' : '#FFFFFF',
+                          backgroundColor: isSelected ? 'var(--surface-highlight)' : 'var(--surface-primary)',
                           cursor: 'pointer',
                           fontSize: '0.9rem',
                           transition: 'all 0.15s ease',
@@ -281,7 +281,7 @@ export default function LessonProgressBox({
           </label>
 
           {quizError && (
-            <div style={{ marginTop: '14px', padding: '10px 14px', backgroundColor: '#FDF2F2', color: 'var(--color-danger)', borderRadius: '8px', fontSize: '0.85rem', lineHeight: 1.5 }}>
+            <div style={{ marginTop: '14px', padding: '10px 14px', backgroundColor: 'var(--color-danger-soft)', color: 'var(--color-danger)', borderRadius: '8px', fontSize: '0.85rem', lineHeight: 1.5 }}>
               {quizError}
             </div>
           )}
@@ -309,17 +309,19 @@ export default function LessonProgressBox({
             </span>
           </div>
 
-          {/* COURSE COMPLETION BANNER IF 100% */}
+          {/* COURSE LESSON COMPLETION BANNER */}
           {isAllCourseDone ? (
             <div style={{ backgroundColor: 'var(--color-forest)', color: 'white', padding: '24px', borderRadius: '12px', marginBottom: '20px', borderLeft: '4px solid var(--color-gold)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <Sparkles size={22} style={{ color: 'var(--color-gold)' }} />
                 <h4 style={{ color: 'white', fontSize: '1.25rem', margin: 0 }}>
-                  Course Fully Completed!
+                  {certificate ? 'Course Fully Completed!' : 'All Course Lessons Completed'}
                 </h4>
               </div>
               <p style={{ color: '#d1dbd5', fontSize: '0.92rem', lineHeight: 1.5, marginBottom: '16px' }}>
-                Outstanding leadership achievement! You have mastered every lesson in <strong>{categoryName}</strong>. Your verifiable certificate of completion is now available.
+                {certificate
+                  ? <>Congratulations! You passed the final test and earned your certificate for <strong>{categoryName}</strong>.</>
+                  : <>You have completed every lesson in <strong>{categoryName}</strong>. To finish the course and earn a certificate, pass the general final test. If it is not available yet, please wait for the instructor to add it.</>}
               </p>
               {certificate ? (
                 <Link
@@ -332,12 +334,12 @@ export default function LessonProgressBox({
                 </Link>
               ) : (
                 <Link
-                  href="/dashboard/student"
+                  href={categoryId ? `/courses/${categoryId}` : '/explore'}
                   className="btn btn-gold"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
                 >
                   <Award size={18} />
-                  <span>Claim Certificate on Student Dashboard</span>
+                  <span>Open Course Final Test</span>
                 </Link>
               )}
             </div>
